@@ -631,6 +631,93 @@ func (b *bareMetalInventory) RegisterAddHostsClusterInternal(ctx context.Context
 	return &newCluster, nil
 }
 
+func (b *bareMetalInventory) RegisterPoolCluster(ctx context.Context, params installer.RegisterPoolClusterParams) middleware.Responder {
+	c, err := b.RegisterPoolClusterInternal(ctx, nil, params)
+	if err != nil {
+		return common.GenerateErrorResponder(err)
+	}
+	return installer.NewRegisterPoolClusterCreated().WithPayload(&c.Cluster)
+}
+
+func (b *bareMetalInventory) RegisterPoolClusterInternal(ctx context.Context, kubeKey *types.NamespacedName, params installer.RegisterPoolClusterParams) (*common.Cluster, error) {
+	id := strfmt.UUID(uuid.New().String())
+	url := installer.GetClusterURL{ClusterID: id}
+
+	log := logutil.FromContext(ctx, b.log).WithField(ctxparams.ClusterId, id)
+	clusterName := swag.StringValue(params.NewPoolClusterParams.Name)
+
+	log.Infof("Register pool-cluster: %s, id %s", clusterName, id.String())
+
+	if params.NewPoolClusterParams.HTTPProxy != nil &&
+		(params.NewPoolClusterParams.HTTPSProxy == nil || *params.NewPoolClusterParams.HTTPSProxy == "") {
+		params.NewPoolClusterParams.HTTPSProxy = params.NewPoolClusterParams.HTTPProxy
+	}
+
+	if err := validateProxySettings(params.NewPoolClusterParams.HTTPProxy,
+		params.NewPoolClusterParams.HTTPSProxy,
+		params.NewPoolClusterParams.NoProxy); err != nil {
+		return nil, common.NewApiError(http.StatusBadRequest, err)
+	}
+
+	openshiftVersion, err := b.versionsHandler.GetVersion(swag.StringValue(params.NewPoolClusterParams.OpenshiftVersion))
+	if err != nil {
+		err = errors.Errorf("Openshift version %s is not supported",
+			swag.StringValue(params.NewPoolClusterParams.OpenshiftVersion))
+		return nil, common.NewApiError(http.StatusBadRequest, err)
+	}
+
+	if kubeKey == nil {
+		kubeKey = &types.NamespacedName{}
+	}
+
+	newCluster := common.Cluster{Cluster: models.Cluster{
+		ID:               &id,
+		Href:             swag.String(url.String()),
+		Kind:             swag.String(models.ClusterKindPoolCluster),
+		Name:             clusterName,
+		OpenshiftVersion: *openshiftVersion.ReleaseVersion,
+		UserName:         ocm.UserNameFromContext(ctx),
+		OrgID:            ocm.OrgIDFromContext(ctx),
+		EmailDomain:      ocm.EmailDomainFromContext(ctx),
+		UpdatedAt:        strfmt.DateTime{},
+		HostNetworks:     []*models.HostNetwork{},
+		Hosts:            []*models.Host{},
+	},
+		KubeKeyName:      kubeKey.Name,
+		KubeKeyNamespace: kubeKey.Namespace,
+	}
+
+	err = validations.ValidateClusterNameFormat(clusterName)
+	if err != nil {
+		return nil, common.NewApiError(http.StatusBadRequest, err)
+	}
+
+	proxyHash, err := computeClusterProxyHash(params.NewPoolClusterParams.HTTPProxy,
+		params.NewPoolClusterParams.HTTPSProxy,
+		params.NewPoolClusterParams.NoProxy)
+	if err != nil {
+		return nil, common.NewApiError(http.StatusInternalServerError, errors.Errorf("Failed to compute cluster proxy hash"))
+	} else {
+		newCluster.ProxyHash = proxyHash
+	}
+	pullSecret := swag.StringValue(params.NewPoolClusterParams.PullSecret)
+	err = b.secretValidator.ValidatePullSecret(pullSecret, ocm.UserNameFromContext(ctx), b.authHandler)
+	if err != nil {
+		err = errors.Wrap(secretValidationToUserError(err), "pull secret for pool cluster is invalid")
+		return nil, common.NewApiError(http.StatusBadRequest, err)
+	}
+	setPullSecret(&newCluster, pullSecret)
+
+	// After registering the cluster, its status should be 'ClusterStatusPoolCluster'
+	err = b.clusterApi.RegisterPoolCluster(ctx, &newCluster)
+	if err != nil {
+		log.Errorf("failed to register cluster %s ", clusterName)
+		return nil, common.NewApiError(http.StatusInternalServerError, err)
+	}
+
+	return &newCluster, nil
+}
+
 func (b *bareMetalInventory) createAndUploadNodeIgnition(ctx context.Context, cluster *common.Cluster, host *models.Host) error {
 	log := logutil.FromContext(ctx, b.log)
 	log.Infof("Starting createAndUploadNodeIgnition for cluster %s, host %s", cluster.ID, host.ID)
@@ -2502,6 +2589,9 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 	kind := swag.String(models.HostKindHost)
 	if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
 		kind = swag.String(models.HostKindAddToExistingClusterHost)
+	}
+	if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
+		kind = swag.String(models.HostKindPoolClusterHost)
 	}
 
 	// We immediately set the role to master in single node clusters to have more strict (master) validations.

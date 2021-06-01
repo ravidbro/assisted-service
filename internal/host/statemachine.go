@@ -26,6 +26,7 @@ func NewHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
 		TransitionType: TransitionTypeRegisterHost,
 		SourceStates: []stateswitch.State{
 			"",
+			stateswitch.State(models.HostStatusWaitingToBeRegistered),
 			stateswitch.State(models.HostStatusDiscovering),
 			stateswitch.State(models.HostStatusKnown),
 			stateswitch.State(models.HostStatusDisconnected),
