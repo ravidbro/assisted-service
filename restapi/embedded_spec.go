@@ -2509,6 +2509,80 @@ func init() {
         }
       }
     },
+    "/clusters/{cluster_id}/hosts/{host_id}/actions/move": {
+      "post": {
+        "description": "move host between clusters",
+        "tags": [
+          "installer"
+        ],
+        "operationId": "MoveHost",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The cluster of the host that it's currently belings to.",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The host that that is going to be moved between clusters.",
+            "name": "host_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The destination cluster ID.",
+            "name": "new-cluster-id",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/cluster_id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success.",
+            "schema": {
+              "$ref": "#/definitions/host"
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "404": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "500": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
     "/clusters/{cluster_id}/hosts/{host_id}/actions/reset": {
       "post": {
         "description": "reset a failed host for day2 cluster.",
@@ -5617,6 +5691,15 @@ func init() {
         "service_network_cidr": {
           "type": "string",
           "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[\\/]([1-9]|[1-2][0-9]|3[0-2]?)$"
+        }
+      }
+    },
+    "cluster_id": {
+      "type": "object",
+      "properties": {
+        "cluster_id": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },
@@ -10173,6 +10256,80 @@ func init() {
         }
       }
     },
+    "/clusters/{cluster_id}/hosts/{host_id}/actions/move": {
+      "post": {
+        "description": "move host between clusters",
+        "tags": [
+          "installer"
+        ],
+        "operationId": "MoveHost",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The cluster of the host that it's currently belings to.",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The host that that is going to be moved between clusters.",
+            "name": "host_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The destination cluster ID.",
+            "name": "new-cluster-id",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/cluster_id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success.",
+            "schema": {
+              "$ref": "#/definitions/host"
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "404": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "500": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
     "/clusters/{cluster_id}/hosts/{host_id}/actions/reset": {
       "post": {
         "description": "reset a failed host for day2 cluster.",
@@ -13385,6 +13542,15 @@ func init() {
         "service_network_cidr": {
           "type": "string",
           "pattern": "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)[\\/]([1-9]|[1-2][0-9]|3[0-2]?)$"
+        }
+      }
+    },
+    "cluster_id": {
+      "type": "object",
+      "properties": {
+        "cluster_id": {
+          "type": "string",
+          "format": "uuid"
         }
       }
     },

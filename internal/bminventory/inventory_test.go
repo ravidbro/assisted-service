@@ -880,6 +880,59 @@ var _ = Describe("GetHost", func() {
 	})
 })
 
+var _ = Describe("MoveHost", func() {
+	var (
+		bm               *bareMetalInventory
+		cfg              Config
+		db               *gorm.DB
+		ctx              = context.Background()
+		dbName           string
+		hostID           strfmt.UUID
+		currentClusterId strfmt.UUID
+		newCluster       *common.Cluster
+	)
+
+	BeforeEach(func() {
+		hostID = strfmt.UUID(uuid.New().String())
+		db, dbName = common.PrepareTestDB()
+		bm = createInventory(db, cfg)
+		currentClusterId = strfmt.UUID(uuid.New().String())
+		newCluster = createCluster(db, models.ClusterStatusReady)
+		hostObj := models.Host{
+			ID:        &hostID,
+			ClusterID: currentClusterId,
+			Status:    swag.String("discovering"),
+		}
+		Expect(db.Create(&hostObj).Error).ShouldNot(HaveOccurred())
+	})
+
+	AfterEach(func() {
+		common.DeleteTestDB(db, dbName)
+		ctrl.Finish()
+	})
+
+	It("Move host between clusters", func() {
+		mockClusterApi.EXPECT().AcceptRegistration(gomock.Any()).Return(nil).Times(1)
+		mockHostApi.EXPECT().RegisterHost(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+		mockCRDUtils.EXPECT().CreateAgentCR(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
+		mockHostApi.EXPECT().GetStagesByRole(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+		mockEvents.EXPECT().
+			AddEvent(gomock.Any(), *newCluster.ID, &hostID, models.EventSeverityInfo, gomock.Any(), gomock.Any()).Times(1)
+		mockEvents.EXPECT().
+			AddEvent(gomock.Any(), currentClusterId, &hostID, models.EventSeverityInfo, gomock.Any(), gomock.Any()).Times(1)
+
+		reply := bm.MoveHost(ctx, installer.MoveHostParams{
+			ClusterID: currentClusterId,
+			HostID:    hostID,
+			NewClusterID: &models.ClusterID{
+				ClusterID: *newCluster.ID,
+			},
+		})
+		_, ok := reply.(*installer.MoveHostAccepted)
+		Expect(ok).Should(BeTrue())
+	})
+})
+
 var _ = Describe("RegisterHost", func() {
 	var (
 		bm     *bareMetalInventory

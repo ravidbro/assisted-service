@@ -190,6 +190,9 @@ func NewAssistedInstallAPI(spec *loads.Document) *AssistedInstallAPI {
 		OperatorsListSupportedOperatorsHandler: operators.ListSupportedOperatorsHandlerFunc(func(params operators.ListSupportedOperatorsParams, principal interface{}) middleware.Responder {
 			return middleware.NotImplemented("operation operators.ListSupportedOperators has not yet been implemented")
 		}),
+		InstallerMoveHostHandler: installer.MoveHostHandlerFunc(func(params installer.MoveHostParams, principal interface{}) middleware.Responder {
+			return middleware.NotImplemented("operation installer.MoveHost has not yet been implemented")
+		}),
 		InstallerPostStepReplyHandler: installer.PostStepReplyHandlerFunc(func(params installer.PostStepReplyParams, principal interface{}) middleware.Responder {
 			return middleware.NotImplemented("operation installer.PostStepReply has not yet been implemented")
 		}),
@@ -412,6 +415,8 @@ type AssistedInstallAPI struct {
 	VersionsListSupportedOpenshiftVersionsHandler versions.ListSupportedOpenshiftVersionsHandler
 	// OperatorsListSupportedOperatorsHandler sets the operation handler for the list supported operators operation
 	OperatorsListSupportedOperatorsHandler operators.ListSupportedOperatorsHandler
+	// InstallerMoveHostHandler sets the operation handler for the move host operation
+	InstallerMoveHostHandler installer.MoveHostHandler
 	// InstallerPostStepReplyHandler sets the operation handler for the post step reply operation
 	InstallerPostStepReplyHandler installer.PostStepReplyHandler
 	// InstallerRegisterAddHostsClusterHandler sets the operation handler for the register add hosts cluster operation
@@ -681,6 +686,9 @@ func (o *AssistedInstallAPI) Validate() error {
 	}
 	if o.OperatorsListSupportedOperatorsHandler == nil {
 		unregistered = append(unregistered, "operators.ListSupportedOperatorsHandler")
+	}
+	if o.InstallerMoveHostHandler == nil {
+		unregistered = append(unregistered, "installer.MoveHostHandler")
 	}
 	if o.InstallerPostStepReplyHandler == nil {
 		unregistered = append(unregistered, "installer.PostStepReplyHandler")
@@ -1035,6 +1043,10 @@ func (o *AssistedInstallAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/supported-operators"] = operators.NewListSupportedOperators(o.context, o.OperatorsListSupportedOperatorsHandler)
+	if o.handlers["POST"] == nil {
+		o.handlers["POST"] = make(map[string]http.Handler)
+	}
+	o.handlers["POST"]["/clusters/{cluster_id}/hosts/{host_id}/actions/move"] = installer.NewMoveHost(o.context, o.InstallerMoveHostHandler)
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}

@@ -1893,6 +1893,57 @@ paths:
           schema:
             $ref: '#/definitions/error'
 
+  /clusters/{cluster_id}/hosts/{host_id}/actions/move:
+    post:
+      tags:
+        - installer
+      description: move host between clusters
+      operationId: MoveHost
+      parameters:
+        - in: path
+          name: cluster_id
+          description: The cluster of the host that it's currently belings to.
+          type: string
+          format: uuid
+          required: true
+        - in: path
+          name: host_id
+          description: The host that that is going to be moved between clusters.
+          type: string
+          format: uuid
+          required: true
+        - in: body
+          name: new-cluster-id
+          required: true
+          description: The destination cluster ID.
+          schema:
+            $ref: '#/definitions/cluster_id'
+      responses:
+        "202":
+          description: Success.
+          schema:
+            $ref: '#/definitions/host'
+        "401":
+          description: Unauthorized.
+          schema:
+            $ref: '#/definitions/infra_error'
+        "403":
+          description: Forbidden.
+          schema:
+            $ref: '#/definitions/infra_error'
+        "404":
+          description: Error.
+          schema:
+            $ref: '#/definitions/error'
+        "409":
+          description: Error.
+          schema:
+            $ref: '#/definitions/error'
+        "500":
+          description: Error.
+          schema:
+            $ref: '#/definitions/error'
+
   /clusters/{cluster_id}/hosts/{host_id}/actions/reset-validation/{validation_id}:
     patch:
       tags:
@@ -5334,3 +5385,10 @@ definitions:
         description: additional properties of the feature
         additionalProperties:
           type: object
+
+  cluster_id:
+    type: object
+    properties:
+      cluster_id:
+        type: string
+        format: uuid

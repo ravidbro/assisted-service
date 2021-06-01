@@ -143,6 +143,7 @@ type API interface {
 	UpdateImageStatus(ctx context.Context, h *models.Host, imageStatus *models.ContainerImageAvailability, db *gorm.DB) error
 	SetDiskSpeed(ctx context.Context, h *models.Host, path string, speedMs int64, exitCode int64, db *gorm.DB) error
 	ResetHostValidation(ctx context.Context, hostID, clusterID strfmt.UUID, validationID string, db *gorm.DB) error
+	MoveHost(ctx context.Context, h *models.Host, clusterID strfmt.UUID, db *gorm.DB) error
 }
 
 type Manager struct {
@@ -1126,6 +1127,27 @@ func (m *Manager) SetDiskSpeed(ctx context.Context, h *models.Host, path string,
 			return err
 		}
 	}
+	return nil
+}
+
+func (m *Manager) MoveHost(ctx context.Context, h *models.Host, clusterID strfmt.UUID, db *gorm.DB) error {
+	log := logutil.FromContext(ctx, m.log)
+	if db == nil {
+		db = m.db
+	}
+
+	var err error
+	resultDb := db.Model(h).UpdateColumn("cluster_id", clusterID)
+	if resultDb.Error != nil {
+		log.WithError(resultDb.Error).Errorf("Move host %s", h.ID.String())
+		return resultDb.Error
+	}
+	if resultDb.RowsAffected == 0 {
+		err = errors.Errorf("No row updated.  Host %s", h.ID.String())
+		log.WithError(err).Error("Move host")
+		return err
+	}
+
 	return nil
 }
 

@@ -4010,6 +4010,55 @@ func (b *bareMetalInventory) InstallHost(ctx context.Context, params installer.I
 	return installer.NewInstallHostAccepted().WithPayload(h)
 }
 
+func (b *bareMetalInventory) MoveHost(ctx context.Context, params installer.MoveHostParams) middleware.Responder {
+	log := logutil.FromContext(ctx, b.log)
+	log.Info("Moving host: ", params.HostID)
+	hostToMove, err := common.GetHostFromDB(b.db, params.ClusterID.String(), params.HostID.String())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.WithError(err).Errorf("host %s not found", params.HostID)
+			return common.NewApiError(http.StatusNotFound, err)
+		}
+		log.WithError(err).Errorf("failed to get host %s", params.HostID)
+		msg := fmt.Sprintf("Failed to move host %s: error fetching host from DB", params.HostID.String())
+		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
+		return common.NewApiError(http.StatusInternalServerError, err)
+	}
+
+	registerHostParams := installer.RegisterHostParams{
+		ClusterID:             params.NewClusterID.ClusterID,
+		DiscoveryAgentVersion: &hostToMove.DiscoveryAgentVersion,
+		NewHostParams: &models.HostCreateParams{
+			DiscoveryAgentVersion: hostToMove.DiscoveryAgentVersion,
+			HostID:                &params.HostID,
+		},
+	}
+	registerHostResponse := b.RegisterHost(ctx, registerHostParams)
+	switch registerHostResponse.(type) {
+	case *installer.RegisterHostCreated:
+		break
+	case *installer.RegisterHostConflict:
+		return installer.NewMoveHostConflict()
+	case *installer.RegisterHostForbidden:
+		return installer.NewMoveHostForbidden()
+	default:
+		return installer.NewMoveHostInternalServerError()
+	}
+
+	deregisterHostParams := installer.DeregisterHostParams{
+		ClusterID: params.ClusterID,
+		HostID:    params.HostID,
+	}
+	if err := b.DeregisterHostInternal(ctx, deregisterHostParams); err != nil {
+		log.WithError(err).Errorf("failed to deregister host %s", params.HostID)
+		msg := fmt.Sprintf("Failed to move host %s: error deregistering host from existing cluster", params.HostID.String())
+		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
+		return common.NewApiError(http.StatusInternalServerError, err)
+	}
+
+	return installer.NewMoveHostAccepted().WithPayload(&hostToMove.Host)
+}
+
 func (b *bareMetalInventory) ResetHost(ctx context.Context, params installer.ResetHostParams) middleware.Responder {
 	log := logutil.FromContext(ctx, b.log)
 	log.Info("Resetting host: ", params.HostID)

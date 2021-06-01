@@ -153,6 +153,9 @@ type InstallerAPI interface {
 	/* ListHosts Retrieves the list of OpenShift hosts. */
 	ListHosts(ctx context.Context, params installer.ListHostsParams) middleware.Responder
 
+	/* MoveHost move host between clusters */
+	MoveHost(ctx context.Context, params installer.MoveHostParams) middleware.Responder
+
 	/* PostStepReply Posts the result of the operations from the host agent. */
 	PostStepReply(ctx context.Context, params installer.PostStepReplyParams) middleware.Responder
 
@@ -583,6 +586,11 @@ func HandlerAPI(c Config) (http.Handler, *operations.AssistedInstallAPI, error) 
 		ctx := params.HTTPRequest.Context()
 		ctx = storeAuth(ctx, principal)
 		return c.OperatorsAPI.ListSupportedOperators(ctx, params)
+	})
+	api.InstallerMoveHostHandler = installer.MoveHostHandlerFunc(func(params installer.MoveHostParams, principal interface{}) middleware.Responder {
+		ctx := params.HTTPRequest.Context()
+		ctx = storeAuth(ctx, principal)
+		return c.InstallerAPI.MoveHost(ctx, params)
 	})
 	api.InstallerPostStepReplyHandler = installer.PostStepReplyHandlerFunc(func(params installer.PostStepReplyParams, principal interface{}) middleware.Responder {
 		ctx := params.HTTPRequest.Context()

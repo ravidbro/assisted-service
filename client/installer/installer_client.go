@@ -118,6 +118,9 @@ type API interface {
 	   ListHosts Retrieves the list of OpenShift hosts.*/
 	ListHosts(ctx context.Context, params *ListHostsParams) (*ListHostsOK, error)
 	/*
+	   MoveHost move host between clusters*/
+	MoveHost(ctx context.Context, params *MoveHostParams) (*MoveHostAccepted, error)
+	/*
 	   PostStepReply Posts the result of the operations from the host agent.*/
 	PostStepReply(ctx context.Context, params *PostStepReplyParams) (*PostStepReplyNoContent, error)
 	/*
@@ -996,6 +999,31 @@ func (a *Client) ListHosts(ctx context.Context, params *ListHostsParams) (*ListH
 		return nil, err
 	}
 	return result.(*ListHostsOK), nil
+
+}
+
+/*
+MoveHost move host between clusters
+*/
+func (a *Client) MoveHost(ctx context.Context, params *MoveHostParams) (*MoveHostAccepted, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "MoveHost",
+		Method:             "POST",
+		PathPattern:        "/clusters/{cluster_id}/hosts/{host_id}/actions/move",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http", "https"},
+		Params:             params,
+		Reader:             &MoveHostReader{formats: a.formats},
+		AuthInfo:           a.authInfo,
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*MoveHostAccepted), nil
 
 }
 

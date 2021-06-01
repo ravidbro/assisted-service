@@ -483,6 +483,20 @@ func (mr *MockInstallerAPIMockRecorder) ListHosts(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListHosts", reflect.TypeOf((*MockInstallerAPI)(nil).ListHosts), arg0, arg1)
 }
 
+// MoveHost mocks base method
+func (m *MockInstallerAPI) MoveHost(arg0 context.Context, arg1 installer.MoveHostParams) middleware.Responder {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MoveHost", arg0, arg1)
+	ret0, _ := ret[0].(middleware.Responder)
+	return ret0
+}
+
+// MoveHost indicates an expected call of MoveHost
+func (mr *MockInstallerAPIMockRecorder) MoveHost(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MoveHost", reflect.TypeOf((*MockInstallerAPI)(nil).MoveHost), arg0, arg1)
+}
+
 // PostStepReply mocks base method
 func (m *MockInstallerAPI) PostStepReply(arg0 context.Context, arg1 installer.PostStepReplyParams) middleware.Responder {
 	m.ctrl.T.Helper()
