@@ -31,8 +31,9 @@ const (
 )
 
 type StepsStruct struct {
-	Commands      []CommandGetter
-	NextStepInSec int64
+	Commands       []CommandGetter
+	NextStepInSec  int64
+	PostStepAction string
 }
 
 type stateToStepsMap map[string]StepsStruct
@@ -74,43 +75,47 @@ func NewInstructionManager(log logrus.FieldLogger, db *gorm.DB, hwValidator hard
 	ntpSynchronizerCmd := NewNtpSyncCmd(log, instructionConfig.AgentImage, db)
 	diskPerfCheckCmd := NewDiskPerfCheckCmd(log, instructionConfig.AgentImage, hwValidator, instructionConfig.DiskCheckTimeout.Seconds())
 	imageAvailabilityCmd := NewImageAvailabilityCmd(log, db, ocRelease, versionHandler, instructionConfig)
+	emptyCmd := NewEmptyCmd()
 
 	return &InstructionManager{
 		log: log,
 		db:  db,
 		installingClusterStateToSteps: stateToStepsMap{
-			models.HostStatusKnown:                    {[]CommandGetter{connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusInsufficient:             {[]CommandGetter{inventoryCmd, connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusDisconnected:             {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusDiscovering:              {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec},
-			models.HostStatusPendingForInput:          {[]CommandGetter{inventoryCmd, connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusInstalling:               {[]CommandGetter{installCmd, dhcpAllocateCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusInstallingInProgress:     {[]CommandGetter{inventoryCmd, dhcpAllocateCmd}, defaultNextInstructionInSec}, //TODO inventory step here is a temporary solution until format command is moved to a different state
-			models.HostStatusPreparingForInstallation: {[]CommandGetter{dhcpAllocateCmd, diskPerfCheckCmd, imageAvailabilityCmd}, defaultNextInstructionInSec},
-			models.HostStatusDisabled:                 {[]CommandGetter{}, defaultBackedOffInstructionInSec},
-			models.HostStatusResetting:                {[]CommandGetter{resetCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusError:                    {[]CommandGetter{logsCmd, stopCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusCancelled:                {[]CommandGetter{logsCmd, stopCmd}, defaultBackedOffInstructionInSec},
+			models.HostStatusKnown:                    {[]CommandGetter{connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInsufficient:             {[]CommandGetter{inventoryCmd, connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisconnected:             {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDiscovering:              {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusPendingForInput:          {[]CommandGetter{inventoryCmd, connectivityCmd, freeAddressesCmd, dhcpAllocateCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInstalling:               {[]CommandGetter{installCmd, dhcpAllocateCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInstallingInProgress:     {[]CommandGetter{inventoryCmd, dhcpAllocateCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue}, //TODO inventory step here is a temporary solution until format command is moved to a different state
+			models.HostStatusPreparingForInstallation: {[]CommandGetter{dhcpAllocateCmd, diskPerfCheckCmd, imageAvailabilityCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisabled:                 {[]CommandGetter{}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusResetting:                {[]CommandGetter{resetCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusError:                    {[]CommandGetter{logsCmd, stopCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusCancelled:                {[]CommandGetter{logsCmd, stopCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusWaitingToBeRegistered:    {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
 		},
 		addHostsClusterToSteps: stateToStepsMap{
-			models.HostStatusKnown:                {[]CommandGetter{connectivityCmd, apivipConnectivityCmd, inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusInsufficient:         {[]CommandGetter{inventoryCmd, connectivityCmd, apivipConnectivityCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusDisconnected:         {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusDiscovering:          {[]CommandGetter{inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec},
-			models.HostStatusPendingForInput:      {[]CommandGetter{inventoryCmd, connectivityCmd, apivipConnectivityCmd}, defaultNextInstructionInSec},
-			models.HostStatusInstalling:           {[]CommandGetter{installCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusInstallingInProgress: {[]CommandGetter{}, defaultNextInstructionInSec},
-			models.HostStatusDisabled:             {[]CommandGetter{}, defaultBackedOffInstructionInSec},
-			models.HostStatusResetting:            {[]CommandGetter{resetCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusError:                {[]CommandGetter{stopCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusCancelled:            {[]CommandGetter{stopCmd}, defaultBackedOffInstructionInSec},
+			models.HostStatusKnown:                 {[]CommandGetter{connectivityCmd, apivipConnectivityCmd, inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInsufficient:          {[]CommandGetter{inventoryCmd, connectivityCmd, apivipConnectivityCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisconnected:          {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDiscovering:           {[]CommandGetter{inventoryCmd, ntpSynchronizerCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusPendingForInput:       {[]CommandGetter{inventoryCmd, connectivityCmd, apivipConnectivityCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInstalling:            {[]CommandGetter{installCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInstallingInProgress:  {[]CommandGetter{}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisabled:              {[]CommandGetter{}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusResetting:             {[]CommandGetter{resetCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusError:                 {[]CommandGetter{stopCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusCancelled:             {[]CommandGetter{stopCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusWaitingToBeRegistered: {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
 		},
 		poolClusterToSteps: stateToStepsMap{
-			models.HostStatusDiscovering:    {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec},
-			models.HostStatusDisconnected:   {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec},
-			models.HostStatusDisabled:       {[]CommandGetter{}, defaultBackedOffInstructionInSec},
-			models.HostStatusInsufficient:   {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec},
-			models.HostStatusReadyToBeMoved: {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec},
+			models.HostStatusDiscovering:           {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisconnected:          {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisabled:              {[]CommandGetter{}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInsufficient:          {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusReadyToBeMoved:        {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusWaitingToBeRegistered: {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
 		},
 	}
 }
@@ -129,10 +134,11 @@ func (i *InstructionManager) GetNextSteps(ctx context.Context, host *models.Host
 		stateToSteps = i.addHostsClusterToSteps
 	}
 
-	returnSteps.PostStepAction = swag.String(models.StepsPostStepActionContinue)
+	// returnSteps.PostStepAction = swag.String(models.StepsPostStepActionContinue)
 	if cmdsMap, ok := stateToSteps[hostStatus]; ok {
 		//need to add the step id
 		returnSteps.NextInstructionSeconds = cmdsMap.NextStepInSec
+		returnSteps.PostStepAction = swag.String(cmdsMap.PostStepAction)
 		for _, cmd := range cmdsMap.Commands {
 			steps, err := cmd.GetSteps(ctx, host)
 			if err != nil {
