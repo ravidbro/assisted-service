@@ -18,18 +18,18 @@ import (
 	"github.com/openshift/assisted-service/models"
 )
 
-// NewMoveHostParams creates a new MoveHostParams object
+// NewBindHostParams creates a new BindHostParams object
 // no default values defined in spec.
-func NewMoveHostParams() MoveHostParams {
+func NewBindHostParams() BindHostParams {
 
-	return MoveHostParams{}
+	return BindHostParams{}
 }
 
-// MoveHostParams contains all the bound params for the move host operation
+// BindHostParams contains all the bound params for the bind host operation
 // typically these are obtained from a http.Request
 //
-// swagger:parameters MoveHost
-type MoveHostParams struct {
+// swagger:parameters BindHost
+type BindHostParams struct {
 
 	// HTTP Request Object
 	HTTPRequest *http.Request `json:"-"`
@@ -39,7 +39,7 @@ type MoveHostParams struct {
 	  In: path
 	*/
 	ClusterID strfmt.UUID
-	/*The host that that is going to be moved between clusters.
+	/*The host that that is going to be binded.
 	  Required: true
 	  In: path
 	*/
@@ -54,8 +54,8 @@ type MoveHostParams struct {
 // BindRequest both binds and validates a request, it assumes that complex things implement a Validatable(strfmt.Registry) error interface
 // for simple values it will use straight method calls.
 //
-// To ensure default values, the struct must have been initialized with NewMoveHostParams() beforehand.
-func (o *MoveHostParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
+// To ensure default values, the struct must have been initialized with NewBindHostParams() beforehand.
+func (o *BindHostParams) BindRequest(r *http.Request, route *middleware.MatchedRoute) error {
 	var res []error
 
 	o.HTTPRequest = r
@@ -99,7 +99,7 @@ func (o *MoveHostParams) BindRequest(r *http.Request, route *middleware.MatchedR
 }
 
 // bindClusterID binds and validates parameter ClusterID from path.
-func (o *MoveHostParams) bindClusterID(rawData []string, hasKey bool, formats strfmt.Registry) error {
+func (o *BindHostParams) bindClusterID(rawData []string, hasKey bool, formats strfmt.Registry) error {
 	var raw string
 	if len(rawData) > 0 {
 		raw = rawData[len(rawData)-1]
@@ -123,7 +123,7 @@ func (o *MoveHostParams) bindClusterID(rawData []string, hasKey bool, formats st
 }
 
 // validateClusterID carries on validations for parameter ClusterID
-func (o *MoveHostParams) validateClusterID(formats strfmt.Registry) error {
+func (o *BindHostParams) validateClusterID(formats strfmt.Registry) error {
 
 	if err := validate.FormatOf("cluster_id", "path", "uuid", o.ClusterID.String(), formats); err != nil {
 		return err
@@ -132,7 +132,7 @@ func (o *MoveHostParams) validateClusterID(formats strfmt.Registry) error {
 }
 
 // bindHostID binds and validates parameter HostID from path.
-func (o *MoveHostParams) bindHostID(rawData []string, hasKey bool, formats strfmt.Registry) error {
+func (o *BindHostParams) bindHostID(rawData []string, hasKey bool, formats strfmt.Registry) error {
 	var raw string
 	if len(rawData) > 0 {
 		raw = rawData[len(rawData)-1]
@@ -156,7 +156,7 @@ func (o *MoveHostParams) bindHostID(rawData []string, hasKey bool, formats strfm
 }
 
 // validateHostID carries on validations for parameter HostID
-func (o *MoveHostParams) validateHostID(formats strfmt.Registry) error {
+func (o *BindHostParams) validateHostID(formats strfmt.Registry) error {
 
 	if err := validate.FormatOf("host_id", "path", "uuid", o.HostID.String(), formats); err != nil {
 		return err

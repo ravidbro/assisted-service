@@ -19,6 +19,9 @@ import (
 // API is the interface of the installer client
 type API interface {
 	/*
+	   BindHost bind host to a cluster*/
+	BindHost(ctx context.Context, params *BindHostParams) (*BindHostAccepted, error)
+	/*
 	   CancelInstallation Cancels an ongoing installation.*/
 	CancelInstallation(ctx context.Context, params *CancelInstallationParams) (*CancelInstallationAccepted, error)
 	/*
@@ -118,9 +121,6 @@ type API interface {
 	   ListHosts Retrieves the list of OpenShift hosts.*/
 	ListHosts(ctx context.Context, params *ListHostsParams) (*ListHostsOK, error)
 	/*
-	   MoveHost move host between clusters*/
-	MoveHost(ctx context.Context, params *MoveHostParams) (*MoveHostAccepted, error)
-	/*
 	   PostStepReply Posts the result of the operations from the host agent.*/
 	PostStepReply(ctx context.Context, params *PostStepReplyParams) (*PostStepReplyNoContent, error)
 	/*
@@ -197,6 +197,31 @@ type Client struct {
 	transport runtime.ClientTransport
 	formats   strfmt.Registry
 	authInfo  runtime.ClientAuthInfoWriter
+}
+
+/*
+BindHost bind host to a cluster
+*/
+func (a *Client) BindHost(ctx context.Context, params *BindHostParams) (*BindHostAccepted, error) {
+
+	result, err := a.transport.Submit(&runtime.ClientOperation{
+		ID:                 "BindHost",
+		Method:             "POST",
+		PathPattern:        "/clusters/{cluster_id}/hosts/{host_id}/actions/bind",
+		ProducesMediaTypes: []string{"application/json"},
+		ConsumesMediaTypes: []string{"application/json"},
+		Schemes:            []string{"http", "https"},
+		Params:             params,
+		Reader:             &BindHostReader{formats: a.formats},
+		AuthInfo:           a.authInfo,
+		Context:            ctx,
+		Client:             params.HTTPClient,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return result.(*BindHostAccepted), nil
+
 }
 
 /*
@@ -999,31 +1024,6 @@ func (a *Client) ListHosts(ctx context.Context, params *ListHostsParams) (*ListH
 		return nil, err
 	}
 	return result.(*ListHostsOK), nil
-
-}
-
-/*
-MoveHost move host between clusters
-*/
-func (a *Client) MoveHost(ctx context.Context, params *MoveHostParams) (*MoveHostAccepted, error) {
-
-	result, err := a.transport.Submit(&runtime.ClientOperation{
-		ID:                 "MoveHost",
-		Method:             "POST",
-		PathPattern:        "/clusters/{cluster_id}/hosts/{host_id}/actions/move",
-		ProducesMediaTypes: []string{"application/json"},
-		ConsumesMediaTypes: []string{"application/json"},
-		Schemes:            []string{"http", "https"},
-		Params:             params,
-		Reader:             &MoveHostReader{formats: a.formats},
-		AuthInfo:           a.authInfo,
-		Context:            ctx,
-		Client:             params.HTTPClient,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.(*MoveHostAccepted), nil
 
 }
 

@@ -11,40 +11,40 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 )
 
-// MoveHostHandlerFunc turns a function with the right signature into a move host handler
-type MoveHostHandlerFunc func(MoveHostParams, interface{}) middleware.Responder
+// BindHostHandlerFunc turns a function with the right signature into a bind host handler
+type BindHostHandlerFunc func(BindHostParams, interface{}) middleware.Responder
 
 // Handle executing the request and returning a response
-func (fn MoveHostHandlerFunc) Handle(params MoveHostParams, principal interface{}) middleware.Responder {
+func (fn BindHostHandlerFunc) Handle(params BindHostParams, principal interface{}) middleware.Responder {
 	return fn(params, principal)
 }
 
-// MoveHostHandler interface for that can handle valid move host params
-type MoveHostHandler interface {
-	Handle(MoveHostParams, interface{}) middleware.Responder
+// BindHostHandler interface for that can handle valid bind host params
+type BindHostHandler interface {
+	Handle(BindHostParams, interface{}) middleware.Responder
 }
 
-// NewMoveHost creates a new http.Handler for the move host operation
-func NewMoveHost(ctx *middleware.Context, handler MoveHostHandler) *MoveHost {
-	return &MoveHost{Context: ctx, Handler: handler}
+// NewBindHost creates a new http.Handler for the bind host operation
+func NewBindHost(ctx *middleware.Context, handler BindHostHandler) *BindHost {
+	return &BindHost{Context: ctx, Handler: handler}
 }
 
-/*MoveHost swagger:route POST /clusters/{cluster_id}/hosts/{host_id}/actions/move installer moveHost
+/*BindHost swagger:route POST /clusters/{cluster_id}/hosts/{host_id}/actions/bind installer bindHost
 
-move host between clusters
+bind host to a cluster
 
 */
-type MoveHost struct {
+type BindHost struct {
 	Context *middleware.Context
-	Handler MoveHostHandler
+	Handler BindHostHandler
 }
 
-func (o *MoveHost) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+func (o *BindHost) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	route, rCtx, _ := o.Context.RouteInfo(r)
 	if rCtx != nil {
 		r = rCtx
 	}
-	var Params = NewMoveHostParams()
+	var Params = NewBindHostParams()
 
 	uprinc, aCtx, err := o.Context.Authorize(r, route)
 	if err != nil {

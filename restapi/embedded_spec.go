@@ -2304,6 +2304,80 @@ func init() {
         }
       }
     },
+    "/clusters/{cluster_id}/hosts/{host_id}/actions/bind": {
+      "post": {
+        "description": "bind host to a cluster",
+        "tags": [
+          "installer"
+        ],
+        "operationId": "BindHost",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The cluster of the host that it's currently belings to.",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The host that that is going to be binded.",
+            "name": "host_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The destination cluster ID.",
+            "name": "new-cluster-id",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/cluster_id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success.",
+            "schema": {
+              "$ref": "#/definitions/host"
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "404": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "500": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
     "/clusters/{cluster_id}/hosts/{host_id}/actions/enable": {
       "post": {
         "description": "Enables a host for inclusion in the cluster.",
@@ -2467,80 +2541,6 @@ func init() {
             "name": "host_id",
             "in": "path",
             "required": true
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Success.",
-            "schema": {
-              "$ref": "#/definitions/host"
-            }
-          },
-          "401": {
-            "description": "Unauthorized.",
-            "schema": {
-              "$ref": "#/definitions/infra_error"
-            }
-          },
-          "403": {
-            "description": "Forbidden.",
-            "schema": {
-              "$ref": "#/definitions/infra_error"
-            }
-          },
-          "404": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          },
-          "409": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          },
-          "500": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          }
-        }
-      }
-    },
-    "/clusters/{cluster_id}/hosts/{host_id}/actions/move": {
-      "post": {
-        "description": "move host between clusters",
-        "tags": [
-          "installer"
-        ],
-        "operationId": "MoveHost",
-        "parameters": [
-          {
-            "type": "string",
-            "format": "uuid",
-            "description": "The cluster of the host that it's currently belings to.",
-            "name": "cluster_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "format": "uuid",
-            "description": "The host that that is going to be moved between clusters.",
-            "name": "host_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "description": "The destination cluster ID.",
-            "name": "new-cluster-id",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/cluster_id"
-            }
           }
         ],
         "responses": {
@@ -6384,7 +6384,7 @@ func init() {
           "x-go-custom-tag": "gorm:\"type:timestamp with time zone\""
         },
         "cluster_id": {
-          "description": "The cluster that this host is associated with.",
+          "description": "The cluster that this host was associated when booted.",
           "type": "string",
           "format": "uuid",
           "x-go-custom-tag": "gorm:\"primary_key;foreignkey:Cluster\""
@@ -6397,6 +6397,12 @@ func init() {
           "type": "string",
           "format": "date-time",
           "x-go-custom-tag": "gorm:\"type:timestamp with time zone\""
+        },
+        "current_cluster_id": {
+          "description": "The cluster that this host is associated with.",
+          "type": "string",
+          "format": "uuid",
+          "x-go-custom-tag": "gorm:\"foreignkey:Cluster\""
         },
         "deleted_at": {
           "description": "The time that the host was deleted.",
@@ -10051,6 +10057,80 @@ func init() {
         }
       }
     },
+    "/clusters/{cluster_id}/hosts/{host_id}/actions/bind": {
+      "post": {
+        "description": "bind host to a cluster",
+        "tags": [
+          "installer"
+        ],
+        "operationId": "BindHost",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The cluster of the host that it's currently belings to.",
+            "name": "cluster_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "format": "uuid",
+            "description": "The host that that is going to be binded.",
+            "name": "host_id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The destination cluster ID.",
+            "name": "new-cluster-id",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/cluster_id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success.",
+            "schema": {
+              "$ref": "#/definitions/host"
+            }
+          },
+          "401": {
+            "description": "Unauthorized.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "403": {
+            "description": "Forbidden.",
+            "schema": {
+              "$ref": "#/definitions/infra_error"
+            }
+          },
+          "404": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          },
+          "500": {
+            "description": "Error.",
+            "schema": {
+              "$ref": "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
     "/clusters/{cluster_id}/hosts/{host_id}/actions/enable": {
       "post": {
         "description": "Enables a host for inclusion in the cluster.",
@@ -10214,80 +10294,6 @@ func init() {
             "name": "host_id",
             "in": "path",
             "required": true
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Success.",
-            "schema": {
-              "$ref": "#/definitions/host"
-            }
-          },
-          "401": {
-            "description": "Unauthorized.",
-            "schema": {
-              "$ref": "#/definitions/infra_error"
-            }
-          },
-          "403": {
-            "description": "Forbidden.",
-            "schema": {
-              "$ref": "#/definitions/infra_error"
-            }
-          },
-          "404": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          },
-          "409": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          },
-          "500": {
-            "description": "Error.",
-            "schema": {
-              "$ref": "#/definitions/error"
-            }
-          }
-        }
-      }
-    },
-    "/clusters/{cluster_id}/hosts/{host_id}/actions/move": {
-      "post": {
-        "description": "move host between clusters",
-        "tags": [
-          "installer"
-        ],
-        "operationId": "MoveHost",
-        "parameters": [
-          {
-            "type": "string",
-            "format": "uuid",
-            "description": "The cluster of the host that it's currently belings to.",
-            "name": "cluster_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "format": "uuid",
-            "description": "The host that that is going to be moved between clusters.",
-            "name": "host_id",
-            "in": "path",
-            "required": true
-          },
-          {
-            "description": "The destination cluster ID.",
-            "name": "new-cluster-id",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/cluster_id"
-            }
           }
         ],
         "responses": {
@@ -14199,7 +14205,7 @@ func init() {
           "x-go-custom-tag": "gorm:\"type:timestamp with time zone\""
         },
         "cluster_id": {
-          "description": "The cluster that this host is associated with.",
+          "description": "The cluster that this host was associated when booted.",
           "type": "string",
           "format": "uuid",
           "x-go-custom-tag": "gorm:\"primary_key;foreignkey:Cluster\""
@@ -14212,6 +14218,12 @@ func init() {
           "type": "string",
           "format": "date-time",
           "x-go-custom-tag": "gorm:\"type:timestamp with time zone\""
+        },
+        "current_cluster_id": {
+          "description": "The cluster that this host is associated with.",
+          "type": "string",
+          "format": "uuid",
+          "x-go-custom-tag": "gorm:\"foreignkey:Cluster\""
         },
         "deleted_at": {
           "description": "The time that the host was deleted.",

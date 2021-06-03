@@ -14,8 +14,8 @@ import (
 	"github.com/go-openapi/strfmt"
 )
 
-// MoveHostURL generates an URL for the move host operation
-type MoveHostURL struct {
+// BindHostURL generates an URL for the bind host operation
+type BindHostURL struct {
 	ClusterID strfmt.UUID
 	HostID    strfmt.UUID
 
@@ -27,7 +27,7 @@ type MoveHostURL struct {
 // WithBasePath sets the base path for this url builder, only required when it's different from the
 // base path specified in the swagger spec.
 // When the value of the base path is an empty string
-func (o *MoveHostURL) WithBasePath(bp string) *MoveHostURL {
+func (o *BindHostURL) WithBasePath(bp string) *BindHostURL {
 	o.SetBasePath(bp)
 	return o
 }
@@ -35,28 +35,28 @@ func (o *MoveHostURL) WithBasePath(bp string) *MoveHostURL {
 // SetBasePath sets the base path for this url builder, only required when it's different from the
 // base path specified in the swagger spec.
 // When the value of the base path is an empty string
-func (o *MoveHostURL) SetBasePath(bp string) {
+func (o *BindHostURL) SetBasePath(bp string) {
 	o._basePath = bp
 }
 
 // Build a url path and query string
-func (o *MoveHostURL) Build() (*url.URL, error) {
+func (o *BindHostURL) Build() (*url.URL, error) {
 	var _result url.URL
 
-	var _path = "/clusters/{cluster_id}/hosts/{host_id}/actions/move"
+	var _path = "/clusters/{cluster_id}/hosts/{host_id}/actions/bind"
 
 	clusterID := o.ClusterID.String()
 	if clusterID != "" {
 		_path = strings.Replace(_path, "{cluster_id}", clusterID, -1)
 	} else {
-		return nil, errors.New("clusterId is required on MoveHostURL")
+		return nil, errors.New("clusterId is required on BindHostURL")
 	}
 
 	hostID := o.HostID.String()
 	if hostID != "" {
 		_path = strings.Replace(_path, "{host_id}", hostID, -1)
 	} else {
-		return nil, errors.New("hostId is required on MoveHostURL")
+		return nil, errors.New("hostId is required on BindHostURL")
 	}
 
 	_basePath := o._basePath
@@ -69,7 +69,7 @@ func (o *MoveHostURL) Build() (*url.URL, error) {
 }
 
 // Must is a helper function to panic when the url builder returns an error
-func (o *MoveHostURL) Must(u *url.URL, err error) *url.URL {
+func (o *BindHostURL) Must(u *url.URL, err error) *url.URL {
 	if err != nil {
 		panic(err)
 	}
@@ -80,17 +80,17 @@ func (o *MoveHostURL) Must(u *url.URL, err error) *url.URL {
 }
 
 // String returns the string representation of the path with query string
-func (o *MoveHostURL) String() string {
+func (o *BindHostURL) String() string {
 	return o.Must(o.Build()).String()
 }
 
 // BuildFull builds a full url with scheme, host, path and query string
-func (o *MoveHostURL) BuildFull(scheme, host string) (*url.URL, error) {
+func (o *BindHostURL) BuildFull(scheme, host string) (*url.URL, error) {
 	if scheme == "" {
-		return nil, errors.New("scheme is required for a full url on MoveHostURL")
+		return nil, errors.New("scheme is required for a full url on BindHostURL")
 	}
 	if host == "" {
-		return nil, errors.New("host is required for a full url on MoveHostURL")
+		return nil, errors.New("host is required for a full url on BindHostURL")
 	}
 
 	base, err := o.Build()
@@ -104,6 +104,6 @@ func (o *MoveHostURL) BuildFull(scheme, host string) (*url.URL, error) {
 }
 
 // StringFull returns the string representation of a complete url
-func (o *MoveHostURL) StringFull(scheme, host string) string {
+func (o *BindHostURL) StringFull(scheme, host string) string {
 	return o.Must(o.BuildFull(scheme, host)).String()
 }

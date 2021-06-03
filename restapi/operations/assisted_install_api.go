@@ -52,6 +52,9 @@ func NewAssistedInstallAPI(spec *loads.Document) *AssistedInstallAPI {
 		BinProducer:  runtime.ByteStreamProducer(),
 		JSONProducer: runtime.JSONProducer(),
 
+		InstallerBindHostHandler: installer.BindHostHandlerFunc(func(params installer.BindHostParams, principal interface{}) middleware.Responder {
+			return middleware.NotImplemented("operation installer.BindHost has not yet been implemented")
+		}),
 		InstallerCancelInstallationHandler: installer.CancelInstallationHandlerFunc(func(params installer.CancelInstallationParams, principal interface{}) middleware.Responder {
 			return middleware.NotImplemented("operation installer.CancelInstallation has not yet been implemented")
 		}),
@@ -190,9 +193,6 @@ func NewAssistedInstallAPI(spec *loads.Document) *AssistedInstallAPI {
 		OperatorsListSupportedOperatorsHandler: operators.ListSupportedOperatorsHandlerFunc(func(params operators.ListSupportedOperatorsParams, principal interface{}) middleware.Responder {
 			return middleware.NotImplemented("operation operators.ListSupportedOperators has not yet been implemented")
 		}),
-		InstallerMoveHostHandler: installer.MoveHostHandlerFunc(func(params installer.MoveHostParams, principal interface{}) middleware.Responder {
-			return middleware.NotImplemented("operation installer.MoveHost has not yet been implemented")
-		}),
 		InstallerPostStepReplyHandler: installer.PostStepReplyHandlerFunc(func(params installer.PostStepReplyParams, principal interface{}) middleware.Responder {
 			return middleware.NotImplemented("operation installer.PostStepReply has not yet been implemented")
 		}),
@@ -323,6 +323,8 @@ type AssistedInstallAPI struct {
 	// APIAuthorizer provides access control (ACL/RBAC/ABAC) by providing access to the request and authenticated principal
 	APIAuthorizer runtime.Authorizer
 
+	// InstallerBindHostHandler sets the operation handler for the bind host operation
+	InstallerBindHostHandler installer.BindHostHandler
 	// InstallerCancelInstallationHandler sets the operation handler for the cancel installation operation
 	InstallerCancelInstallationHandler installer.CancelInstallationHandler
 	// InstallerCompleteInstallationHandler sets the operation handler for the complete installation operation
@@ -415,8 +417,6 @@ type AssistedInstallAPI struct {
 	VersionsListSupportedOpenshiftVersionsHandler versions.ListSupportedOpenshiftVersionsHandler
 	// OperatorsListSupportedOperatorsHandler sets the operation handler for the list supported operators operation
 	OperatorsListSupportedOperatorsHandler operators.ListSupportedOperatorsHandler
-	// InstallerMoveHostHandler sets the operation handler for the move host operation
-	InstallerMoveHostHandler installer.MoveHostHandler
 	// InstallerPostStepReplyHandler sets the operation handler for the post step reply operation
 	InstallerPostStepReplyHandler installer.PostStepReplyHandler
 	// InstallerRegisterAddHostsClusterHandler sets the operation handler for the register add hosts cluster operation
@@ -549,6 +549,9 @@ func (o *AssistedInstallAPI) Validate() error {
 		unregistered = append(unregistered, "AuthorizationAuth")
 	}
 
+	if o.InstallerBindHostHandler == nil {
+		unregistered = append(unregistered, "installer.BindHostHandler")
+	}
 	if o.InstallerCancelInstallationHandler == nil {
 		unregistered = append(unregistered, "installer.CancelInstallationHandler")
 	}
@@ -686,9 +689,6 @@ func (o *AssistedInstallAPI) Validate() error {
 	}
 	if o.OperatorsListSupportedOperatorsHandler == nil {
 		unregistered = append(unregistered, "operators.ListSupportedOperatorsHandler")
-	}
-	if o.InstallerMoveHostHandler == nil {
-		unregistered = append(unregistered, "installer.MoveHostHandler")
 	}
 	if o.InstallerPostStepReplyHandler == nil {
 		unregistered = append(unregistered, "installer.PostStepReplyHandler")
@@ -859,6 +859,10 @@ func (o *AssistedInstallAPI) initHandlerCache() {
 		o.handlers = make(map[string]map[string]http.Handler)
 	}
 
+	if o.handlers["POST"] == nil {
+		o.handlers["POST"] = make(map[string]http.Handler)
+	}
+	o.handlers["POST"]["/clusters/{cluster_id}/hosts/{host_id}/actions/bind"] = installer.NewBindHost(o.context, o.InstallerBindHostHandler)
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
@@ -1043,10 +1047,6 @@ func (o *AssistedInstallAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/supported-operators"] = operators.NewListSupportedOperators(o.context, o.OperatorsListSupportedOperatorsHandler)
-	if o.handlers["POST"] == nil {
-		o.handlers["POST"] = make(map[string]http.Handler)
-	}
-	o.handlers["POST"]["/clusters/{cluster_id}/hosts/{host_id}/actions/move"] = installer.NewMoveHost(o.context, o.InstallerMoveHostHandler)
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}

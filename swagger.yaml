@@ -1893,12 +1893,12 @@ paths:
           schema:
             $ref: '#/definitions/error'
 
-  /clusters/{cluster_id}/hosts/{host_id}/actions/move:
+  /clusters/{cluster_id}/hosts/{host_id}/actions/bind:
     post:
       tags:
         - installer
-      description: move host between clusters
-      operationId: MoveHost
+      description: bind host to a cluster
+      operationId: BindHost
       parameters:
         - in: path
           name: cluster_id
@@ -1908,7 +1908,7 @@ paths:
           required: true
         - in: path
           name: host_id
-          description: The host that that is going to be moved between clusters.
+          description: The host that that is going to be binded.
           type: string
           format: uuid
           required: true
@@ -3618,6 +3618,11 @@ definitions:
         type: string
         format: uuid
         x-go-custom-tag: gorm:"primary_key;foreignkey:Cluster"
+        description: The cluster that this host was associated when booted.
+      current_cluster_id:
+        type: string
+        format: uuid
+        x-go-custom-tag: gorm:"foreignkey:Cluster"
         description: The cluster that this host is associated with.
       status:
         type: string

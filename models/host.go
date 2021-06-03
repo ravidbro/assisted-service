@@ -30,7 +30,7 @@ type Host struct {
 	// Format: date-time
 	CheckedInAt strfmt.DateTime `json:"checked_in_at,omitempty" gorm:"type:timestamp with time zone"`
 
-	// The cluster that this host is associated with.
+	// The cluster that this host was associated when booted.
 	// Format: uuid
 	ClusterID strfmt.UUID `json:"cluster_id,omitempty" gorm:"primary_key;foreignkey:Cluster"`
 
@@ -40,6 +40,10 @@ type Host struct {
 	// created at
 	// Format: date-time
 	CreatedAt strfmt.DateTime `json:"created_at,omitempty" gorm:"type:timestamp with time zone"`
+
+	// The cluster that this host is associated with.
+	// Format: uuid
+	CurrentClusterID strfmt.UUID `json:"current_cluster_id,omitempty" gorm:"foreignkey:Cluster"`
 
 	// The time that the host was deleted.
 	// Format: date-time
@@ -168,6 +172,10 @@ func (m *Host) Validate(formats strfmt.Registry) error {
 		res = append(res, err)
 	}
 
+	if err := m.validateCurrentClusterID(formats); err != nil {
+		res = append(res, err)
+	}
+
 	if err := m.validateDeletedAt(formats); err != nil {
 		res = append(res, err)
 	}
@@ -271,6 +279,19 @@ func (m *Host) validateCreatedAt(formats strfmt.Registry) error {
 	}
 
 	if err := validate.FormatOf("created_at", "body", "date-time", m.CreatedAt.String(), formats); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Host) validateCurrentClusterID(formats strfmt.Registry) error {
+
+	if swag.IsZero(m.CurrentClusterID) { // not required
+		return nil
+	}
+
+	if err := validate.FormatOf("current_cluster_id", "body", "uuid", m.CurrentClusterID.String(), formats); err != nil {
 		return err
 	}
 

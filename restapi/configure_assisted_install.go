@@ -54,6 +54,9 @@ type EventsAPI interface {
 
 /* InstallerAPI  */
 type InstallerAPI interface {
+	/* BindHost bind host to a cluster */
+	BindHost(ctx context.Context, params installer.BindHostParams) middleware.Responder
+
 	/* CancelInstallation Cancels an ongoing installation. */
 	CancelInstallation(ctx context.Context, params installer.CancelInstallationParams) middleware.Responder
 
@@ -152,9 +155,6 @@ type InstallerAPI interface {
 
 	/* ListHosts Retrieves the list of OpenShift hosts. */
 	ListHosts(ctx context.Context, params installer.ListHostsParams) middleware.Responder
-
-	/* MoveHost move host between clusters */
-	MoveHost(ctx context.Context, params installer.MoveHostParams) middleware.Responder
 
 	/* PostStepReply Posts the result of the operations from the host agent. */
 	PostStepReply(ctx context.Context, params installer.PostStepReplyParams) middleware.Responder
@@ -357,6 +357,11 @@ func HandlerAPI(c Config) (http.Handler, *operations.AssistedInstallAPI, error) 
 	}
 
 	api.APIAuthorizer = authorizer(c.Authorizer)
+	api.InstallerBindHostHandler = installer.BindHostHandlerFunc(func(params installer.BindHostParams, principal interface{}) middleware.Responder {
+		ctx := params.HTTPRequest.Context()
+		ctx = storeAuth(ctx, principal)
+		return c.InstallerAPI.BindHost(ctx, params)
+	})
 	api.InstallerCancelInstallationHandler = installer.CancelInstallationHandlerFunc(func(params installer.CancelInstallationParams, principal interface{}) middleware.Responder {
 		ctx := params.HTTPRequest.Context()
 		ctx = storeAuth(ctx, principal)
@@ -586,11 +591,6 @@ func HandlerAPI(c Config) (http.Handler, *operations.AssistedInstallAPI, error) 
 		ctx := params.HTTPRequest.Context()
 		ctx = storeAuth(ctx, principal)
 		return c.OperatorsAPI.ListSupportedOperators(ctx, params)
-	})
-	api.InstallerMoveHostHandler = installer.MoveHostHandlerFunc(func(params installer.MoveHostParams, principal interface{}) middleware.Responder {
-		ctx := params.HTTPRequest.Context()
-		ctx = storeAuth(ctx, principal)
-		return c.InstallerAPI.MoveHost(ctx, params)
 	})
 	api.InstallerPostStepReplyHandler = installer.PostStepReplyHandlerFunc(func(params installer.PostStepReplyParams, principal interface{}) middleware.Responder {
 		ctx := params.HTTPRequest.Context()
