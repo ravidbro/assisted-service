@@ -2561,21 +2561,33 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 		}
 	}()
 
-	if err := tx.First(&cluster, "id = ?", params.ClusterID.String()).Error; err != nil {
-		log.WithError(err).Errorf("failed to get cluster: %s", params.ClusterID.String())
+	newHost := false
+	var host *models.Host
+	currentClusterID := params.ClusterID.String()
+	dbHost, err := common.GetHostFromDB(tx, params.ClusterID.String(), params.NewHostParams.HostID.String())
+	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.WithError(err).Errorf("failed to get host %s in cluster: %s",
+				*params.NewHostParams.HostID, params.ClusterID.String())
+			return installer.NewRegisterHostInternalServerError().
+				WithPayload(common.GenerateError(http.StatusInternalServerError, err))
+		}
+		host = b.initializeNewHost(ctx, &params.ClusterID, params.NewHostParams.HostID, params.NewHostParams.DiscoveryAgentVersion)
+		newHost = true
+	} else {
+		currentClusterID = dbHost.CurrentClusterID.String()
+		host = &dbHost.Host
+		if swag.StringValue(dbHost.Host.Status) == models.HostStatusWaitingToBeRegistered {
+			newHost = true
+		}
+	}
+
+	if err = tx.First(&cluster, "id = ?", currentClusterID).Error; err != nil {
+		log.WithError(err).Errorf("failed to get cluster: %s", currentClusterID)
 		return common.GenerateErrorResponder(err)
 	}
 
-	_, err := common.GetHostFromDB(tx, params.ClusterID.String(), params.NewHostParams.HostID.String())
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		log.WithError(err).Errorf("failed to get host %s in cluster: %s",
-			*params.NewHostParams.HostID, params.ClusterID.String())
-		return installer.NewRegisterHostInternalServerError().
-			WithPayload(common.GenerateError(http.StatusInternalServerError, err))
-	}
-
-	// In case host doesn't exists check if the cluster accept new hosts registration
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if newHost {
 		if err = b.clusterApi.AcceptRegistration(&cluster); err != nil {
 			log.WithError(err).Errorf("failed to register host <%s> to cluster %s due to: %s",
 				params.NewHostParams.HostID, params.ClusterID.String(), err.Error())
@@ -2583,40 +2595,53 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 				err.Error(), time.Now())
 			return common.NewApiError(http.StatusConflict, err)
 		}
+		// Delete any previews record of the host if it was soft deleted from the cluster,
+		// no error will be returned if the host was not existed.
+		/*
+			if err = tx.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", params.NewHostParams.HostID, params.ClusterID).Error; err != nil {
+				log.WithError(err).Errorf("error while trying to delete previews record from db (if exists) of host %s in cluster %s",
+					params.NewHostParams.HostID.String(), params.ClusterID.String())
+				return installer.NewRegisterHostInternalServerError().
+					WithPayload(common.GenerateError(http.StatusInternalServerError, err))
+			}
+		*/
 	}
 
-	url := installer.GetHostURL{ClusterID: params.ClusterID, HostID: *params.NewHostParams.HostID}
-	kind := swag.String(models.HostKindHost)
-	if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
-		kind = swag.String(models.HostKindAddToExistingClusterHost)
-	}
-	if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
-		kind = swag.String(models.HostKindPoolClusterHost)
-	}
+	// b.setHostKind(&cluster, host)
+	// b.setHostRole(&cluster, host)
+	/*
+		url := installer.GetHostURL{ClusterID: params.ClusterID, HostID: *params.NewHostParams.HostID}
+		kind := swag.String(models.HostKindHost)
+		if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
+			kind = swag.String(models.HostKindAddToExistingClusterHost)
+		}
+		if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
+			kind = swag.String(models.HostKindPoolClusterHost)
+		}
 
-	// We immediately set the role to master in single node clusters to have more strict (master) validations.
-	// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
-	// which has less strict hardware requirements. This early role assignment results in clearer, more early
-	// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
-	// extra nodes (as workers). In that case, this line might need to be removed.
-	defaultRole := models.HostRoleAutoAssign
-	if common.IsSingleNodeCluster(&cluster) {
-		defaultRole = models.HostRoleMaster
-	}
+		// We immediately set the role to master in single node clusters to have more strict (master) validations.
+		// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
+		// which has less strict hardware requirements. This early role assignment results in clearer, more early
+		// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
+		// extra nodes (as workers). In that case, this line might need to be removed.
+		defaultRole := models.HostRoleAutoAssign
+		if common.IsSingleNodeCluster(&cluster) {
+			defaultRole = models.HostRoleMaster
+		}
 
-	host := &models.Host{
-		ID:                    params.NewHostParams.HostID,
-		Href:                  swag.String(url.String()),
-		Kind:                  kind,
-		ClusterID:             params.ClusterID,
-		CurrentClusterID:      params.ClusterID,
-		CheckedInAt:           strfmt.DateTime(time.Now()),
-		DiscoveryAgentVersion: params.NewHostParams.DiscoveryAgentVersion,
-		UserName:              ocm.UserNameFromContext(ctx),
-		Role:                  defaultRole,
-	}
-
-	if err = b.hostApi.RegisterHost(ctx, host, tx); err != nil {
+		host := &models.Host{
+			ID:                    params.NewHostParams.HostID,
+			Href:                  swag.String(url.String()),
+			Kind:                  kind,
+			ClusterID:             params.ClusterID,
+			CurrentClusterID:      params.ClusterID,
+			CheckedInAt:           strfmt.DateTime(time.Now()),
+			DiscoveryAgentVersion: params.NewHostParams.DiscoveryAgentVersion,
+			UserName:              ocm.UserNameFromContext(ctx),
+			Role:                  defaultRole,
+		}
+	*/
+	if err = b.hostApi.RegisterHost(ctx, &cluster, host, tx); err != nil {
 		log.WithError(err).Errorf("failed to register host <%s> cluster <%s>",
 			params.NewHostParams.HostID.String(), params.ClusterID.String())
 		uerr := errors.Wrap(err, fmt.Sprintf("Failed to register host %s", hostutil.GetHostnameForMsg(host)))
@@ -2655,6 +2680,56 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 
 	return installer.NewRegisterHostCreated().WithPayload(&hostRegistration)
 }
+
+func (b *bareMetalInventory) initializeNewHost(ctx context.Context,
+	clusterID *strfmt.UUID,
+	hostID *strfmt.UUID,
+	discoveryAgentVersion string) *models.Host {
+
+	url := installer.GetHostURL{ClusterID: *clusterID, HostID: *hostID}
+
+	// We immediately set the role to master in single node clusters to have more strict (master) validations.
+	// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
+	// which has less strict hardware requirements. This early role assignment results in clearer, more early
+	// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
+	// extra nodes (as workers). In that case, this line might need to be removed.
+
+	return &models.Host{
+		ID:                    hostID,
+		Href:                  swag.String(url.String()),
+		ClusterID:             *clusterID,
+		CurrentClusterID:      *clusterID,
+		CheckedInAt:           strfmt.DateTime(time.Now()),
+		DiscoveryAgentVersion: discoveryAgentVersion,
+		UserName:              ocm.UserNameFromContext(ctx),
+	}
+}
+
+/*
+func (b *bareMetalInventory) setHostKind(cluster *common.Cluster, host *models.Host) {
+	kind := swag.String(models.HostKindHost)
+	if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
+		kind = swag.String(models.HostKindAddToExistingClusterHost)
+	}
+	if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
+		kind = swag.String(models.HostKindPoolClusterHost)
+	}
+	host.Kind = kind
+}
+
+func (b *bareMetalInventory) setHostRole(cluster *common.Cluster, host *models.Host) {
+	// We immediately set the role to master in single node clusters to have more strict (master) validations.
+	// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
+	// which has less strict hardware requirements. This early role assignment results in clearer, more early
+	// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
+	// extra nodes (as workers). In that case, this line might need to be removed.
+	defaultRole := models.HostRoleAutoAssign
+	if common.IsSingleNodeCluster(cluster) {
+		defaultRole = models.HostRoleMaster
+	}
+	host.Role = defaultRole
+}
+*/
 
 func (b *bareMetalInventory) generateNextStepRunnerCommand(ctx context.Context, params *installer.RegisterHostParams) *models.HostRegistrationResponseAO1NextStepRunnerCommand {
 
@@ -4055,9 +4130,7 @@ func (b *bareMetalInventory) BindHost(ctx context.Context, params installer.Bind
 		return common.NewApiError(http.StatusInternalServerError, err)
 	}
 
-	if *cluster.Kind == models.ClusterKindCluster &&
-		*cluster.Status != models.ClusterStatusInsufficient &&
-		*cluster.Status != models.ClusterStatusReady {
+	if err = b.clusterApi.AcceptRegistration(cluster); err != nil {
 		log.WithError(err).Errorf("Cluster %s with status %s cannot bind hosts", params.NewClusterID.ClusterID, *cluster.Status)
 		msg := fmt.Sprintf("Failed to move host %s: Cluster %s with status %s cannot bind hosts", params.HostID, params.NewClusterID.ClusterID, *cluster.Status)
 		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())

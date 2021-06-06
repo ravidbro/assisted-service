@@ -60,7 +60,8 @@ func (th *transitionHandler) PostRegisterHost(sw stateswitch.StateSwitch, args s
 	if _, err := common.GetHostFromDB(params.db, hostParam.ClusterID.String(), hostParam.ID.String()); err == nil {
 		// The reason for the double register is unknown (HW might have changed) -
 		// so we reset the hw info and progress, and start the discovery process again.
-		extra := append(resetFields[:], "discovery_agent_version", params.discoveryAgentVersion)
+		log.Infof("Registering existing host %s, cluster %s, current cluster %s, kind %s", hostParam.ID.String(), hostParam.ClusterID.String(), hostParam.CurrentClusterID.String(), swag.StringValue(hostParam.Kind))
+		extra := append(resetFields[:], "discovery_agent_version", params.discoveryAgentVersion, "kind", swag.StringValue(hostParam.Kind))
 		var dbHost *common.Host
 		if dbHost, err = hostutil.UpdateHostProgress(params.ctx, log, params.db, th.eventsHandler, hostParam.ClusterID, *hostParam.ID, sHost.srcState,
 			swag.StringValue(hostParam.Status), statusInfoDiscovering, hostParam.Progress.CurrentStage, "", "", extra...); err != nil {
@@ -73,7 +74,7 @@ func (th *transitionHandler) PostRegisterHost(sw stateswitch.StateSwitch, args s
 
 	hostParam.StatusUpdatedAt = strfmt.DateTime(time.Now())
 	hostParam.StatusInfo = swag.String(statusInfoDiscovering)
-	log.Infof("Register new host %s cluster %s", hostParam.ID.String(), hostParam.ClusterID)
+	log.Infof("Register new host %s cluster %s, current cluster %s, kind %s", hostParam.ID.String(), hostParam.ClusterID, hostParam.CurrentClusterID.String(), swag.StringValue(hostParam.Kind))
 	return params.db.Create(hostParam).Error
 }
 

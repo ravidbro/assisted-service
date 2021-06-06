@@ -103,7 +103,7 @@ type Config struct {
 type API interface {
 	hostcommands.InstructionApi
 	// Register a new host
-	RegisterHost(ctx context.Context, h *models.Host, db *gorm.DB) error
+	RegisterHost(ctx context.Context, cluster *common.Cluster, host *models.Host, db *gorm.DB) error
 	RegisterInstalledOCPHost(ctx context.Context, h *models.Host, db *gorm.DB) error
 	HandleInstallationFailure(ctx context.Context, h *models.Host) error
 	UpdateInstallProgress(ctx context.Context, h *models.Host, progress *models.HostProgress) error
@@ -184,35 +184,75 @@ func NewManager(log logrus.FieldLogger, db *gorm.DB, eventsHandler events.Handle
 	}
 }
 
-func (m *Manager) RegisterHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	dbHost, err := common.GetHostFromDB(db, h.ClusterID.String(), h.ID.String())
-	var host *models.Host
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-
-		// Delete any previews record of the host if it was soft deleted from the cluster,
-		// no error will be returned if the host was not existed.
-		if err := db.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", *h.ID, h.ClusterID).Error; err != nil {
+func (m *Manager) RegisterHost(ctx context.Context, cluster *common.Cluster, host *models.Host, db *gorm.DB) error {
+	m.setHostKind(cluster, host)
+	m.setHostRole(cluster, host)
+	if swag.StringValue(host.Status) == "" {
+		if err := db.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", *host.ID, host.ClusterID).Error; err != nil {
 			return errors.Wrapf(
 				err,
 				"error while trying to delete previews record from db (if exists) of host %s in cluster %s",
-				h.ID.String(), h.ClusterID.String())
+				host.ID.String(), host.ClusterID.String())
 		}
-
-		host = h
-	} else {
-		host = &dbHost.Host
-		host.Kind = h.Kind
 	}
+	/*
+		dbHost, err := common.GetHostFromDB(db, h.ClusterID.String(), h.ID.String())
+		var host *models.Host
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
 
-	sm := m.sm[swag.StringValue(h.Kind)]
+			// Delete any previews record of the host if it was soft deleted from the cluster,
+			// no error will be returned if the host was not existed.
+			if err := db.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", *h.ID, h.ClusterID).Error; err != nil {
+				return errors.Wrapf(
+					err,
+					"error while trying to delete previews record from db (if exists) of host %s in cluster %s",
+					h.ID.String(), h.ClusterID.String())
+			}
+
+			host = h
+		} else {
+			host = &dbHost.Host
+			host.Kind = h.Kind
+		}
+	*/
+
+	sm := m.sm[swag.StringValue(host.Kind)]
 	return sm.Run(TransitionTypeRegisterHost, newStateHost(host), &TransitionArgsRegisterHost{
 		ctx:                   ctx,
-		discoveryAgentVersion: h.DiscoveryAgentVersion,
+		discoveryAgentVersion: host.DiscoveryAgentVersion,
 		db:                    db,
 	})
+}
+
+func (m *Manager) setHostKind(cluster *common.Cluster, host *models.Host) {
+	kind := swag.String(models.HostKindHost)
+	if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
+		kind = swag.String(models.HostKindAddToExistingClusterHost)
+	}
+	if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
+		kind = swag.String(models.HostKindPoolClusterHost)
+	}
+	host.Kind = kind
+}
+
+func (m *Manager) setHostRole(cluster *common.Cluster, host *models.Host) {
+	// in case if re-registration - no need to set the role
+	if host.Role != "" {
+		return
+	}
+	// We immediately set the role to master in single node clusters to have more strict (master) validations.
+	// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
+	// which has less strict hardware requirements. This early role assignment results in clearer, more early
+	// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
+	// extra nodes (as workers). In that case, this line might need to be removed.
+	defaultRole := models.HostRoleAutoAssign
+	if common.IsSingleNodeCluster(cluster) {
+		defaultRole = models.HostRoleMaster
+	}
+	host.Role = defaultRole
 }
 
 func (m *Manager) RegisterInstalledOCPHost(ctx context.Context, h *models.Host, db *gorm.DB) error {

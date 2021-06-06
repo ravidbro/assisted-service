@@ -133,6 +133,9 @@ func (i *InstructionManager) GetNextSteps(ctx context.Context, host *models.Host
 	if hostutil.IsDay2Host(host) {
 		stateToSteps = i.addHostsClusterToSteps
 	}
+	if hostutil.IsPoolClusterHost(host) {
+		stateToSteps = i.poolClusterToSteps
+	}
 
 	// returnSteps.PostStepAction = swag.String(models.StepsPostStepActionContinue)
 	if cmdsMap, ok := stateToSteps[hostStatus]; ok {

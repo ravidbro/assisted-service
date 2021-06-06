@@ -619,9 +619,11 @@ var _ = Describe("reset host", func() {
 		It("register resetting host", func() {
 			id := strfmt.UUID(uuid.New().String())
 			clusterId := strfmt.UUID(uuid.New().String())
+			cluster := hostutil.GenerateTestCluster(clusterId, "10.0.0.1/24")
+			// h = hostutil.GenerateTestHost(id, clusterId, models.HostStatusResetting)
 			h = hostutil.GenerateTestHost(id, clusterId, models.HostStatusResetting)
 			Expect(db.Create(&h).Error).ShouldNot(HaveOccurred())
-			Expect(state.RegisterHost(ctx, &h, db)).ShouldNot(HaveOccurred())
+			Expect(state.RegisterHost(ctx, &cluster, &h, db)).ShouldNot(HaveOccurred())
 			db.First(&h, "id = ? and cluster_id = ?", h.ID, h.ClusterID)
 			Expect(*h.Status).Should(Equal(models.HostStatusDiscovering))
 		})
@@ -702,7 +704,10 @@ var _ = Describe("register host", func() {
 		db            *gorm.DB
 		ctrl          *gomock.Controller
 		state         API
+		hostId        strfmt.UUID
 		h             models.Host
+		clusterId     strfmt.UUID
+		cluster       common.Cluster
 		eventsHandler *events.MockHandler
 		dbName        string
 		config        Config
@@ -718,24 +723,27 @@ var _ = Describe("register host", func() {
 	})
 
 	BeforeEach(func() {
-		id := strfmt.UUID(uuid.New().String())
-		clusterId := strfmt.UUID(uuid.New().String())
-		h = hostutil.GenerateTestHost(id, clusterId, models.HostStatusDiscovering)
+		hostId = strfmt.UUID(uuid.New().String())
+		clusterId = strfmt.UUID(uuid.New().String())
+		cluster = hostutil.GenerateTestCluster(clusterId, "10.0.0.1/24")
 	})
 
 	It("register host success", func() {
-		Expect(state.RegisterHost(ctx, &h, db)).ShouldNot(HaveOccurred())
+		h = hostutil.GenerateTestHost(hostId, clusterId, models.HostStatusDiscovering)
+		Expect(state.RegisterHost(ctx, &cluster, &h, db)).ShouldNot(HaveOccurred())
 		db.First(&h, "id = ? and cluster_id = ?", h.ID, h.ClusterID)
 		Expect(*h.Status).Should(Equal(models.HostStatusDiscovering))
 	})
 
 	It("register (soft) deleted host success", func() {
-		Expect(state.RegisterHost(ctx, &h, db)).ShouldNot(HaveOccurred())
+		h = hostutil.GenerateTestHost(hostId, clusterId, "")
+		Expect(state.RegisterHost(ctx, &cluster, &h, db)).ShouldNot(HaveOccurred())
 		db.First(&h, "id = ? and cluster_id = ?", h.ID, h.ClusterID)
 		Expect(*h.Status).Should(Equal(models.HostStatusDiscovering))
 		Expect(db.Delete(&h).RowsAffected).Should(Equal(int64(1)))
 		Expect(db.Unscoped().Find(&h).RowsAffected).Should(Equal(int64(1)))
-		Expect(state.RegisterHost(ctx, &h, db)).ShouldNot(HaveOccurred())
+		h = hostutil.GenerateTestHost(hostId, clusterId, "")
+		Expect(state.RegisterHost(ctx, &cluster, &h, db)).ShouldNot(HaveOccurred())
 		db.First(&h, "id = ? and cluster_id = ?", h.ID, h.ClusterID)
 		Expect(*h.Status).Should(Equal(models.HostStatusDiscovering))
 
@@ -2191,6 +2199,7 @@ var _ = Describe("Validation metrics and events", func() {
 
 	registerTestHostWithValidations := func(clusterID strfmt.UUID) *models.Host {
 
+		cluster := hostutil.GenerateTestCluster(clusterID, "10.0.0.1/24")
 		hostID := strfmt.UUID(uuid.New().String())
 		h := hostutil.GenerateTestHost(hostID, clusterID, models.HostStatusInsufficient)
 
@@ -2201,7 +2210,7 @@ var _ = Describe("Validation metrics and events", func() {
 
 		h.Inventory = hostutil.GenerateMasterInventory()
 
-		err = m.RegisterHost(ctx, &h, db)
+		err = m.RegisterHost(ctx, &cluster, &h, db)
 		Expect(err).ToNot(HaveOccurred())
 
 		return &h
@@ -2278,12 +2287,13 @@ var _ = Describe("SetDiskSpeed", func() {
 
 	registerTestHost := func(clusterID strfmt.UUID) *models.Host {
 
+		cluster := hostutil.GenerateTestCluster(clusterID, "10.0.0.1/24")
 		hostID := strfmt.UUID(uuid.New().String())
 		h := hostutil.GenerateTestHost(hostID, clusterID, models.HostStatusInsufficient)
 
 		h.Inventory = hostutil.GenerateMasterInventory()
 
-		Expect(m.RegisterHost(ctx, &h, db)).ToNot(HaveOccurred())
+		Expect(m.RegisterHost(ctx, &cluster, &h, db)).ToNot(HaveOccurred())
 
 		return &h
 	}
@@ -2368,13 +2378,14 @@ var _ = Describe("ResetHostValidation", func() {
 
 	registerTestHost := func(clusterID strfmt.UUID) *models.Host {
 
+		cluster := hostutil.GenerateTestCluster(clusterID, "10.0.0.1/24")
 		hostID := strfmt.UUID(uuid.New().String())
 		h := hostutil.GenerateTestHost(hostID, clusterID, models.HostStatusInsufficient)
 
 		h.Inventory = hostutil.GenerateMasterInventory()
 		h.InstallationDiskID = "/dev/sda"
 
-		Expect(m.RegisterHost(ctx, &h, db)).ToNot(HaveOccurred())
+		Expect(m.RegisterHost(ctx, &cluster, &h, db)).ToNot(HaveOccurred())
 
 		return &h
 	}

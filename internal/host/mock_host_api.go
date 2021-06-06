@@ -52,6 +52,20 @@ func (mr *MockAPIMockRecorder) AutoAssignRole(arg0, arg1, arg2 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AutoAssignRole", reflect.TypeOf((*MockAPI)(nil).AutoAssignRole), arg0, arg1, arg2)
 }
 
+// BindHost mocks base method
+func (m *MockAPI) BindHost(arg0 context.Context, arg1 *models.Host, arg2 *gorm.DB, arg3 strfmt.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BindHost", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BindHost indicates an expected call of BindHost
+func (mr *MockAPIMockRecorder) BindHost(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BindHost", reflect.TypeOf((*MockAPI)(nil).BindHost), arg0, arg1, arg2, arg3)
+}
+
 // CancelInstallation mocks base method
 func (m *MockAPI) CancelInstallation(arg0 context.Context, arg1 *models.Host, arg2 string, arg3 *gorm.DB) *common.ApiErrorResponse {
 	m.ctrl.T.Helper()
@@ -221,20 +235,6 @@ func (mr *MockAPIMockRecorder) IsValidMasterCandidate(arg0, arg1, arg2, arg3 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsValidMasterCandidate", reflect.TypeOf((*MockAPI)(nil).IsValidMasterCandidate), arg0, arg1, arg2, arg3)
 }
 
-// BindHost mocks base method
-func (m *MockAPI) BindHost(arg0 context.Context, arg1 *models.Host, arg2 *gorm.DB, newClusterID strfmt.UUID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BindHost", arg0, arg1, arg2, newClusterID)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// BindHost indicates an expected call of BindHost
-func (mr *MockAPIMockRecorder) BindHost(arg0, arg1, arg2, newClusterID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BindHost", reflect.TypeOf((*MockAPI)(nil).BindHost), arg0, arg1, arg2, newClusterID)
-}
-
 // PermanentHostsDeletion mocks base method
 func (m *MockAPI) PermanentHostsDeletion(arg0 strfmt.DateTime) error {
 	m.ctrl.T.Helper()
@@ -278,17 +278,17 @@ func (mr *MockAPIMockRecorder) RefreshStatus(arg0, arg1, arg2 interface{}) *gomo
 }
 
 // RegisterHost mocks base method
-func (m *MockAPI) RegisterHost(arg0 context.Context, arg1 *models.Host, arg2 *gorm.DB) error {
+func (m *MockAPI) RegisterHost(arg0 context.Context, arg1 *common.Cluster, arg2 *models.Host, arg3 *gorm.DB) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterHost", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "RegisterHost", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RegisterHost indicates an expected call of RegisterHost
-func (mr *MockAPIMockRecorder) RegisterHost(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockAPIMockRecorder) RegisterHost(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterHost", reflect.TypeOf((*MockAPI)(nil).RegisterHost), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterHost", reflect.TypeOf((*MockAPI)(nil).RegisterHost), arg0, arg1, arg2, arg3)
 }
 
 // RegisterInstalledOCPHost mocks base method

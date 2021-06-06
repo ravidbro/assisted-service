@@ -67,7 +67,7 @@ var _ = Describe("monitor_disconnection", func() {
 		cluster := hostutil.GenerateTestCluster(clusterID, "1.1.0.0/16")
 		Expect(db.Save(&cluster).Error).ToNot(HaveOccurred())
 		host.Inventory = workerInventory()
-		err := state.RegisterHost(ctx, &host, db)
+		err := state.RegisterHost(ctx, &cluster, &host, db)
 		Expect(err).ShouldNot(HaveOccurred())
 		db.First(&host, "id = ? and cluster_id = ?", host.ID, host.ClusterID)
 
@@ -144,6 +144,7 @@ var _ = Describe("TestHostMonitoring", func() {
 		ctx           = context.Background()
 		db            *gorm.DB
 		state         API
+		cluster       common.Cluster
 		host          models.Host
 		ctrl          *gomock.Controller
 		cfg           Config
@@ -201,12 +202,12 @@ var _ = Describe("TestHostMonitoring", func() {
 			for i := 0; i < nHosts; i++ {
 				if i%10 == 0 {
 					clusterID = strfmt.UUID(uuid.New().String())
-					cluster := hostutil.GenerateTestCluster(clusterID, "1.1.0.0/16")
+					cluster = hostutil.GenerateTestCluster(clusterID, "1.1.0.0/16")
 					Expect(db.Save(&cluster).Error).ToNot(HaveOccurred())
 				}
 				host = hostutil.GenerateTestHost(strfmt.UUID(uuid.New().String()), clusterID, models.HostStatusDiscovering)
 				host.Inventory = workerInventory()
-				Expect(state.RegisterHost(ctx, &host, db)).ShouldNot(HaveOccurred())
+				Expect(state.RegisterHost(ctx, &cluster, &host, db)).ShouldNot(HaveOccurred())
 				host.CheckedInAt = strfmt.DateTime(time.Now().Add(-4 * time.Minute))
 				db.Save(&host)
 			}

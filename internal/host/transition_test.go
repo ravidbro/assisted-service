@@ -72,6 +72,7 @@ var _ = Describe("RegisterHost", func() {
 		mockEvents        *events.MockHandler
 		hostId, clusterId strfmt.UUID
 		dbName            string
+		cluster           common.Cluster
 	)
 
 	BeforeEach(func() {
@@ -83,10 +84,11 @@ var _ = Describe("RegisterHost", func() {
 		hapi = NewManager(common.GetTestLog(), db, mockEvents, mockHwValidator, nil, createValidatorCfg(), nil, defaultConfig, nil, operatorsManager)
 		hostId = strfmt.UUID(uuid.New().String())
 		clusterId = strfmt.UUID(uuid.New().String())
+		cluster = hostutil.GenerateTestCluster(clusterId, "10.0.0.1/24")
 	})
 
 	It("register_new", func() {
-		Expect(hapi.RegisterHost(ctx, &models.Host{ID: &hostId, ClusterID: clusterId, Kind: swag.String(models.HostKindHost), DiscoveryAgentVersion: "v1.0.1"}, db)).ShouldNot(HaveOccurred())
+		Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{ID: &hostId, ClusterID: clusterId, Kind: swag.String(models.HostKindHost), DiscoveryAgentVersion: "v1.0.1"}, db)).ShouldNot(HaveOccurred())
 		h := hostutil.GetHostFromDB(hostId, clusterId, db)
 		Expect(swag.StringValue(h.Status)).Should(Equal(models.HostStatusDiscovering))
 		Expect(h.DiscoveryAgentVersion).To(Equal("v1.0.1"))
@@ -151,12 +153,16 @@ var _ = Describe("RegisterHost", func() {
 					mockEvents.EXPECT().AddEvent(gomock.Any(), clusterId, &hostId, t.expectedEventStatus, fmt.Sprintf(t.expectedEventInfo, hostId.String()), gomock.Any())
 				}
 
-				err := hapi.RegisterHost(ctx, &models.Host{
-					ID:        &hostId,
-					ClusterID: clusterId,
-					Kind:      swag.String(t.hostKind),
-					Status:    swag.String(t.srcState),
-				},
+				err := hapi.RegisterHost(ctx, &cluster,
+					&models.Host{
+						ID:        &hostId,
+						ClusterID: clusterId,
+						Kind:      swag.String(t.hostKind),
+						Status:    swag.String(t.srcState),
+						Progress: &models.HostProgressInfo{
+							CurrentStage: t.progressStage,
+						},
+					},
 					db)
 
 				if t.errorCode == 0 {
@@ -190,7 +196,7 @@ var _ = Describe("RegisterHost", func() {
 			Status:    swag.String(models.HostStatusDisabled),
 		}).Error).ShouldNot(HaveOccurred())
 
-		Expect(hapi.RegisterHost(ctx, &models.Host{
+		Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{
 			ID:                    &hostId,
 			ClusterID:             clusterId,
 			Kind:                  swag.String(models.HostKindHost),
@@ -210,7 +216,7 @@ var _ = Describe("RegisterHost", func() {
 			Status:    swag.String(models.HostStatusError),
 		}).Error).ShouldNot(HaveOccurred())
 
-		Expect(hapi.RegisterHost(ctx, &models.Host{
+		Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{
 			ID:                    &hostId,
 			ClusterID:             clusterId,
 			Kind:                  swag.String(models.HostKindHost),
@@ -283,12 +289,16 @@ var _ = Describe("RegisterHost", func() {
 						gomock.Any())
 				}
 
-				Expect(hapi.RegisterHost(ctx, &models.Host{
+				Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{
 					ID:                    &hostId,
 					ClusterID:             clusterId,
 					Kind:                  swag.String(models.HostKindHost),
 					Status:                swag.String(t.srcState),
 					DiscoveryAgentVersion: discoveryAgentVersion,
+					Progress: &models.HostProgressInfo{
+						CurrentStage: common.TestDefaultConfig.HostProgressStage,
+						ProgressInfo: "some info",
+					},
 				},
 					db)).ShouldNot(HaveOccurred())
 			})
@@ -320,7 +330,7 @@ var _ = Describe("RegisterHost", func() {
 					Status:    swag.String(t.srcState),
 				}).Error).ShouldNot(HaveOccurred())
 
-				Expect(hapi.RegisterHost(ctx, &models.Host{
+				Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{
 					ID:        &hostId,
 					ClusterID: clusterId,
 					Kind:      swag.String(models.HostKindHost),
@@ -435,11 +445,15 @@ var _ = Describe("RegisterHost", func() {
 						gomock.Any())
 				}
 
-				Expect(hapi.RegisterHost(ctx, &models.Host{
-					ID:        &hostId,
-					ClusterID: clusterId,
-					Kind:      &t.hostKind,
-					Status:    swag.String(t.srcState),
+				Expect(hapi.RegisterHost(ctx, &cluster, &models.Host{
+					ID:                   &hostId,
+					ClusterID:            clusterId,
+					Role:                 t.origRole,
+					Inventory:            common.GenerateTestDefaultInventory(),
+					InstallationDiskPath: common.TestDiskId,
+					Kind:                 &t.hostKind,
+					Status:               swag.String(t.srcState),
+					Progress:             &t.progress,
 				},
 					db)).ShouldNot(HaveOccurred())
 
