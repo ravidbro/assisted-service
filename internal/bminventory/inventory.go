@@ -4010,53 +4010,85 @@ func (b *bareMetalInventory) InstallHost(ctx context.Context, params installer.I
 	return installer.NewInstallHostAccepted().WithPayload(h)
 }
 
-func (b *bareMetalInventory) MoveHost(ctx context.Context, params installer.MoveHostParams) middleware.Responder {
+func (b *bareMetalInventory) BindHost(ctx context.Context, params installer.BindHostParams) middleware.Responder {
 	log := logutil.FromContext(ctx, b.log)
-	log.Info("Moving host: ", params.HostID)
-	hostToMove, err := common.GetHostFromDB(b.db, params.ClusterID.String(), params.HostID.String())
+	log.Info("bind host: ", params.HostID)
+
+	txSuccess := false
+	tx := b.db.Begin()
+	tx = transaction.AddForUpdateQueryOption(tx)
+
+	defer func() {
+		if !txSuccess {
+			log.Error("update cluster failed")
+			tx.Rollback()
+		}
+		if r := recover(); r != nil {
+			log.Error("update cluster failed")
+			tx.Rollback()
+		}
+	}()
+
+	host, err := common.GetHostFromDB(tx, params.ClusterID.String(), params.HostID.String())
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.WithError(err).Errorf("host %s not found", params.HostID)
 			return common.NewApiError(http.StatusNotFound, err)
 		}
 		log.WithError(err).Errorf("failed to get host %s", params.HostID)
-		msg := fmt.Sprintf("Failed to move host %s: error fetching host from DB", params.HostID.String())
+		msg := fmt.Sprintf("Failed to bind host %s: error fetching host from DB", params.HostID)
 		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
 		return common.NewApiError(http.StatusInternalServerError, err)
 	}
 
-	registerHostParams := installer.RegisterHostParams{
-		ClusterID:             params.NewClusterID.ClusterID,
-		DiscoveryAgentVersion: &hostToMove.DiscoveryAgentVersion,
-		NewHostParams: &models.HostCreateParams{
-			DiscoveryAgentVersion: hostToMove.DiscoveryAgentVersion,
-			HostID:                &params.HostID,
-		},
-	}
-	registerHostResponse := b.RegisterHost(ctx, registerHostParams)
-	switch registerHostResponse.(type) {
-	case *installer.RegisterHostCreated:
-		break
-	case *installer.RegisterHostConflict:
-		return installer.NewMoveHostConflict()
-	case *installer.RegisterHostForbidden:
-		return installer.NewMoveHostForbidden()
-	default:
-		return installer.NewMoveHostInternalServerError()
-	}
-
-	deregisterHostParams := installer.DeregisterHostParams{
-		ClusterID: params.ClusterID,
-		HostID:    params.HostID,
-	}
-	if err := b.DeregisterHostInternal(ctx, deregisterHostParams); err != nil {
-		log.WithError(err).Errorf("failed to deregister host %s", params.HostID)
-		msg := fmt.Sprintf("Failed to move host %s: error deregistering host from existing cluster", params.HostID.String())
+	// Validate that target cluster exists
+	cluster, err := common.GetClusterFromDB(tx, params.NewClusterID.ClusterID, common.SkipEagerLoading)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.WithError(err).Errorf("cluster %s not found", params.NewClusterID.ClusterID)
+			return common.NewApiError(http.StatusNotFound, err)
+		}
+		log.WithError(err).Errorf("failed to get cluster %s", params.NewClusterID.ClusterID)
+		msg := fmt.Sprintf("Failed to move host %s: error fetching cluster from DB", params.NewClusterID.ClusterID.String())
 		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
 		return common.NewApiError(http.StatusInternalServerError, err)
 	}
 
-	return installer.NewMoveHostAccepted().WithPayload(&hostToMove.Host)
+	if *cluster.Kind == models.ClusterKindCluster &&
+		*cluster.Status != models.ClusterStatusInsufficient &&
+		*cluster.Status != models.ClusterStatusReady {
+		log.WithError(err).Errorf("Cluster %s with status %s cannot bind hosts", params.NewClusterID.ClusterID, *cluster.Status)
+		msg := fmt.Sprintf("Failed to move host %s: Cluster %s with status %s cannot bind hosts", params.HostID, params.NewClusterID.ClusterID, *cluster.Status)
+		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
+		return common.NewApiError(http.StatusConflict, err)
+	}
+
+	if err = b.hostApi.BindHost(ctx, &host.Host, tx, params.NewClusterID.ClusterID); err != nil {
+		log.WithError(err).Errorf("failed to bind host <%s> from cluster <%s>", params.HostID, params.ClusterID)
+		msg := fmt.Sprintf("Failed to bind host %s: error binding host",
+			hostutil.GetHostnameForMsg(&host.Host))
+		b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityError, msg, time.Now())
+		return common.GenerateErrorResponderWithDefault(err, http.StatusInternalServerError)
+	}
+
+	_, err = b.refreshHostAndClusterStatuses(ctx, "bind host", &params.HostID, &params.ClusterID, tx)
+	if err != nil {
+		return common.GenerateErrorResponder(err)
+	}
+
+	if err = tx.Commit().Error; err != nil {
+		log.Error(err)
+		return common.NewApiError(http.StatusInternalServerError, errors.New("DB error, failed to commit transaction"))
+	}
+	txSuccess = true
+
+	b.eventsHandler.AddEvent(ctx, params.ClusterID, &params.HostID, models.EventSeverityInfo, fmt.Sprintf("Host %s: was unbinded from cluster", hostutil.GetHostnameForMsg(&host.Host)), time.Now())
+	log.Infof("Host %s: was unbounded from cluster %s", params.HostID, params.ClusterID)
+
+	b.eventsHandler.AddEvent(ctx, params.NewClusterID.ClusterID, &params.HostID, models.EventSeverityInfo, fmt.Sprintf("Host %s: was binded to cluster", hostutil.GetHostnameForMsg(&host.Host)), time.Now())
+	log.Infof("Host %s: was bound to cluster %s", params.HostID, params.NewClusterID.ClusterID)
+
+	return installer.NewBindHostAccepted().WithPayload(&host.Host)
 }
 
 func (b *bareMetalInventory) ResetHost(ctx context.Context, params installer.ResetHostParams) middleware.Responder {

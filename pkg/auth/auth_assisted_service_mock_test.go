@@ -28,8 +28,8 @@ func (f fakeInventory) CancelInstallation(ctx context.Context, params installer.
 	return installer.NewCancelInstallationAccepted()
 }
 
-func (f fakeInventory) MoveHost(ctx context.Context, params installer.MoveHostParams) middleware.Responder {
-	return installer.NewMoveHostAccepted()
+func (f fakeInventory) BindHost(ctx context.Context, params installer.BindHostParams) middleware.Responder {
+	return installer.NewBindHostAccepted()
 }
 
 func (f fakeInventory) Prog(ctx context.Context, params installer.CancelInstallationParams) middleware.Responder {

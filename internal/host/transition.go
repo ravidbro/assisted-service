@@ -311,6 +311,29 @@ func (th *transitionHandler) PostEnableHost(sw stateswitch.StateSwitch, args sta
 }
 
 ////////////////////////////////////////////////////////////////////////////
+// Bind host
+////////////////////////////////////////////////////////////////////////////
+
+type TransitionArgsBindHost struct {
+	ctx context.Context
+	db  *gorm.DB
+}
+
+func (th *transitionHandler) PostBindHost(sw stateswitch.StateSwitch, args stateswitch.TransitionArgs) error {
+	sHost, ok := sw.(*stateHost)
+	if !ok {
+		return errors.New("PostBindHost incompatible type of StateSwitch")
+	}
+	params, ok := args.(*TransitionArgsBindHost)
+	if !ok {
+		return errors.New("PostBindHost invalid argument")
+	}
+
+	return th.updateTransitionHost(params.ctx, logutil.FromContext(params.ctx, th.log), params.db, sHost, statusInfoHostWaitingForRegistration,
+		resetFields[:]...)
+}
+
+////////////////////////////////////////////////////////////////////////////
 // Resetting pending user action
 ////////////////////////////////////////////////////////////////////////////
 

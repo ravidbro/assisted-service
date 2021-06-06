@@ -13,6 +13,7 @@ const (
 	TransitionTypeInstallHost                = "InstallHost"
 	TransitionTypeDisableHost                = "DisableHost"
 	TransitionTypeEnableHost                 = "EnableHost"
+	TransitionTypeBindHost                   = "BindHost"
 	TransitionTypeResettingPendingUserAction = "ResettingPendingUserAction"
 	TransitionTypeRefresh                    = "RefreshHost"
 	TransitionTypeRegisterInstalledHost      = "RegisterInstalledHost"
@@ -252,6 +253,22 @@ func NewHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
 		},
 		DestinationState: stateswitch.State(models.HostStatusDiscovering),
 		PostTransition:   th.PostEnableHost,
+	})
+
+	// Bind host
+	sm.AddTransition(stateswitch.TransitionRule{
+		TransitionType: TransitionTypeBindHost,
+		SourceStates: []stateswitch.State{
+			stateswitch.State(models.HostStatusKnown),
+			stateswitch.State(models.HostStatusDisconnected),
+			stateswitch.State(models.HostStatusDiscovering),
+			stateswitch.State(models.HostStatusInsufficient),
+			stateswitch.State(models.HostStatusPendingForInput),
+			stateswitch.State(models.HostStatusReadyToBeMoved),
+			stateswitch.State(models.HostStatusWaitingToBeRegistered),
+		},
+		DestinationState: stateswitch.State(models.HostStatusWaitingToBeRegistered),
+		PostTransition:   th.PostBindHost,
 	})
 
 	// Resetting pending user action
@@ -614,6 +631,7 @@ func NewHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
 		stateswitch.State(models.HostStatusError),
 		stateswitch.State(models.HostStatusCancelled),
 		stateswitch.State(models.HostStatusResetting),
+		stateswitch.State(models.HostStatusWaitingToBeRegistered),
 	} {
 		sm.AddTransition(stateswitch.TransitionRule{
 			TransitionType:   TransitionTypeRefresh,

@@ -53,6 +53,22 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 		PostTransition:   th.PostEnableHost,
 	})
 
+	// Bind host
+	sm.AddTransition(stateswitch.TransitionRule{
+		TransitionType: TransitionTypeBindHost,
+		SourceStates: []stateswitch.State{
+			stateswitch.State(models.HostStatusKnown),
+			stateswitch.State(models.HostStatusDisconnected),
+			stateswitch.State(models.HostStatusDiscovering),
+			stateswitch.State(models.HostStatusInsufficient),
+			stateswitch.State(models.HostStatusPendingForInput),
+			stateswitch.State(models.HostStatusReadyToBeMoved),
+			stateswitch.State(models.HostStatusWaitingToBeRegistered),
+		},
+		DestinationState: stateswitch.State(models.HostStatusWaitingToBeRegistered),
+		PostTransition:   th.PostBindHost,
+	})
+
 	// Refresh host
 
 	sm.AddTransition(stateswitch.TransitionRule{
@@ -100,6 +116,7 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	// Noop transitions
 	for _, state := range []stateswitch.State{
 		stateswitch.State(models.HostStatusDisabled),
+		stateswitch.State(models.HostStatusWaitingToBeRegistered),
 	} {
 		sm.AddTransition(stateswitch.TransitionRule{
 			TransitionType:   TransitionTypeRefresh,

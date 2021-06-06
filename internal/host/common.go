@@ -35,6 +35,7 @@ const (
 	statusInfoInstallationInProgressTimedOut                   = "Host failed to install because its installation stage $STAGE took longer than expected $MAX_TIME"
 	statusInfoInstallationInProgressWritingImageToDiskTimedOut = "Host failed to install because its installation stage $STAGE did not sufficiently progress in the last $MAX_TIME."
 	statusInfoHostReadyToBeMoved                               = "Host is part of pool cluster and is ready to be moved"
+	statusInfoHostWaitingForRegistration                       = "Host is waiting for registration to the cluster"
 )
 
 var hostStatusesBeforeInstallation = [...]string{

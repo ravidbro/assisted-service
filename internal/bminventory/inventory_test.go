@@ -880,7 +880,7 @@ var _ = Describe("GetHost", func() {
 	})
 })
 
-var _ = Describe("MoveHost", func() {
+var _ = Describe("BindHost", func() {
 	var (
 		bm               *bareMetalInventory
 		cfg              Config
@@ -889,7 +889,7 @@ var _ = Describe("MoveHost", func() {
 		dbName           string
 		hostID           strfmt.UUID
 		currentClusterId strfmt.UUID
-		newCluster       *common.Cluster
+		newClusterId     strfmt.UUID
 	)
 
 	BeforeEach(func() {
@@ -897,7 +897,19 @@ var _ = Describe("MoveHost", func() {
 		db, dbName = common.PrepareTestDB()
 		bm = createInventory(db, cfg)
 		currentClusterId = strfmt.UUID(uuid.New().String())
-		newCluster = createCluster(db, models.ClusterStatusReady)
+		err := db.Create(&common.Cluster{Cluster: models.Cluster{
+			ID:     &currentClusterId,
+			Kind:   swag.String(models.ClusterKindCluster),
+			Status: swag.String(models.ClusterStatusReady),
+		}}).Error
+		Expect(err).ShouldNot(HaveOccurred())
+		newClusterId = strfmt.UUID(uuid.New().String())
+		err = db.Create(&common.Cluster{Cluster: models.Cluster{
+			ID:     &newClusterId,
+			Kind:   swag.String(models.ClusterKindCluster),
+			Status: swag.String(models.ClusterStatusReady),
+		}}).Error
+		Expect(err).ShouldNot(HaveOccurred())
 		hostObj := models.Host{
 			ID:        &hostID,
 			ClusterID: currentClusterId,
@@ -911,24 +923,24 @@ var _ = Describe("MoveHost", func() {
 		ctrl.Finish()
 	})
 
-	It("Move host between clusters", func() {
-		mockClusterApi.EXPECT().AcceptRegistration(gomock.Any()).Return(nil).Times(1)
-		mockHostApi.EXPECT().RegisterHost(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
-		mockCRDUtils.EXPECT().CreateAgentCR(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
-		mockHostApi.EXPECT().GetStagesByRole(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+	It("Bind host to a cluster", func() {
+		mockClusterApi.EXPECT().SetConnectivityMajorityGroupsForCluster(gomock.Any(), gomock.Any()).Times(1)
+		mockClusterApi.EXPECT().RefreshStatus(gomock.Any(), gomock.Any(), gomock.Any()).Times(1)
+		mockHostApi.EXPECT().BindHost(gomock.Any(), gomock.Any(), gomock.Any(), newClusterId).Times(1)
+		mockHostApi.EXPECT().RefreshStatus(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).Times(1)
 		mockEvents.EXPECT().
-			AddEvent(gomock.Any(), *newCluster.ID, &hostID, models.EventSeverityInfo, gomock.Any(), gomock.Any()).Times(1)
+			AddEvent(gomock.Any(), newClusterId, &hostID, models.EventSeverityInfo, gomock.Any(), gomock.Any()).Times(1)
 		mockEvents.EXPECT().
 			AddEvent(gomock.Any(), currentClusterId, &hostID, models.EventSeverityInfo, gomock.Any(), gomock.Any()).Times(1)
 
-		reply := bm.MoveHost(ctx, installer.MoveHostParams{
+		reply := bm.BindHost(ctx, installer.BindHostParams{
 			ClusterID: currentClusterId,
 			HostID:    hostID,
 			NewClusterID: &models.ClusterID{
-				ClusterID: *newCluster.ID,
+				ClusterID: newClusterId,
 			},
 		})
-		_, ok := reply.(*installer.MoveHostAccepted)
+		_, ok := reply.(*installer.BindHostAccepted)
 		Expect(ok).Should(BeTrue())
 	})
 })
