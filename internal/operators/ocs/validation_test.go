@@ -1253,6 +1253,7 @@ var _ = Describe("Ocs Operator use-cases", func() {
 			mockIsValidMasterCandidate()
 			for i := range t.hosts {
 				t.hosts[i].ClusterID = clusterId
+				t.hosts[i].CurrentClusterID = clusterId
 				Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 			}
 

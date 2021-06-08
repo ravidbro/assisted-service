@@ -5076,7 +5076,7 @@ func init() {
             "type": "object",
             "$ref": "#/definitions/host"
           },
-          "x-go-custom-tag": "gorm:\"foreignkey:ClusterID;association_foreignkey:ID\""
+          "x-go-custom-tag": "gorm:\"foreignkey:CurrentClusterID;association_foreignkey:ID\""
         },
         "href": {
           "description": "Self link.",
@@ -12973,7 +12973,7 @@ func init() {
             "type": "object",
             "$ref": "#/definitions/host"
           },
-          "x-go-custom-tag": "gorm:\"foreignkey:ClusterID;association_foreignkey:ID\""
+          "x-go-custom-tag": "gorm:\"foreignkey:CurrentClusterID;association_foreignkey:ID\""
         },
         "href": {
           "description": "Self link.",

@@ -84,7 +84,7 @@ type Cluster struct {
 	HostNetworks []*HostNetwork `json:"host_networks" gorm:"-"`
 
 	// Hosts that are associated with this cluster.
-	Hosts []*Host `json:"hosts" gorm:"foreignkey:ClusterID;association_foreignkey:ID"`
+	Hosts []*Host `json:"hosts" gorm:"foreignkey:CurrentClusterID;association_foreignkey:ID"`
 
 	// Self link.
 	// Required: true

@@ -1088,6 +1088,7 @@ var _ = Describe("Auto assign machine CIDR", func() {
 				hostId := strfmt.UUID(uuid.New().String())
 				h.ID = &hostId
 				h.ClusterID = id
+				h.CurrentClusterID = id
 				Expect(db.Create(h).Error).ShouldNot(HaveOccurred())
 			}
 			if t.eventCallExpected {
@@ -1359,11 +1360,12 @@ var _ = Describe("ResetCluster", func() {
 func createHost(clusterId strfmt.UUID, state string, db *gorm.DB) {
 	hostId := strfmt.UUID(uuid.New().String())
 	host := models.Host{
-		ID:        &hostId,
-		ClusterID: clusterId,
-		Role:      models.HostRoleMaster,
-		Status:    swag.String(state),
-		Inventory: common.GenerateTestDefaultInventory(),
+		ID:               &hostId,
+		ClusterID:        clusterId,
+		CurrentClusterID: clusterId,
+		Role:             models.HostRoleMaster,
+		Status:           swag.String(state),
+		Inventory:        common.GenerateTestDefaultInventory(),
 	}
 	Expect(db.Create(&host).Error).ShouldNot(HaveOccurred())
 }
@@ -1371,11 +1373,12 @@ func createHost(clusterId strfmt.UUID, state string, db *gorm.DB) {
 func createWorkerHost(clusterId strfmt.UUID, state string, db *gorm.DB) {
 	hostId := strfmt.UUID(uuid.New().String())
 	host := models.Host{
-		ID:        &hostId,
-		ClusterID: clusterId,
-		Role:      models.HostRoleWorker,
-		Status:    swag.String(state),
-		Inventory: common.GenerateTestDefaultInventory(),
+		ID:               &hostId,
+		ClusterID:        clusterId,
+		CurrentClusterID: clusterId,
+		Role:             models.HostRoleWorker,
+		Status:           swag.String(state),
+		Inventory:        common.GenerateTestDefaultInventory(),
 	}
 	Expect(db.Create(&host).Error).ShouldNot(HaveOccurred())
 }
@@ -1386,11 +1389,12 @@ func addInstallationRequirements(clusterId strfmt.UUID, db *gorm.DB) {
 	for i := 0; i < 3; i++ {
 		hostId = strfmt.UUID(uuid.New().String())
 		host = models.Host{
-			ID:        &hostId,
-			ClusterID: clusterId,
-			Role:      models.HostRoleMaster,
-			Status:    swag.String("known"),
-			Inventory: common.GenerateTestDefaultInventory(),
+			ID:               &hostId,
+			ClusterID:        clusterId,
+			CurrentClusterID: clusterId,
+			Role:             models.HostRoleMaster,
+			Status:           swag.String("known"),
+			Inventory:        common.GenerateTestDefaultInventory(),
 		}
 		Expect(db.Create(&host).Error).ShouldNot(HaveOccurred())
 
@@ -1437,12 +1441,13 @@ func addInstallationRequirementsWithConnectivity(clusterId strfmt.UUID, db *gorm
 		b, err := json.Marshal(&connectivityReport)
 		Expect(err).ToNot(HaveOccurred())
 		host = models.Host{
-			ID:           &hostId,
-			ClusterID:    clusterId,
-			Role:         models.HostRoleMaster,
-			Status:       swag.String("known"),
-			Inventory:    twoNetworksInventory(),
-			Connectivity: string(b),
+			ID:               &hostId,
+			ClusterID:        clusterId,
+			CurrentClusterID: clusterId,
+			Role:             models.HostRoleMaster,
+			Status:           swag.String("known"),
+			Inventory:        twoNetworksInventory(),
+			Connectivity:     string(b),
 		}
 		Expect(db.Create(&host).Error).ShouldNot(HaveOccurred())
 

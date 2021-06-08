@@ -4298,7 +4298,7 @@ definitions:
         x-go-custom-tag: gorm:"type:timestamp with time zone"
         description: The last time that the cluster status was updated.
       hosts:
-        x-go-custom-tag: gorm:"foreignkey:ClusterID;association_foreignkey:ID"
+        x-go-custom-tag: gorm:"foreignkey:CurrentClusterID;association_foreignkey:ID"
         type: array
         description: Hosts that are associated with this cluster.
         items:

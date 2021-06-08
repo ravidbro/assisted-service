@@ -2609,6 +2609,7 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 		Href:                  swag.String(url.String()),
 		Kind:                  kind,
 		ClusterID:             params.ClusterID,
+		CurrentClusterID:      params.ClusterID,
 		CheckedInAt:           strfmt.DateTime(time.Now()),
 		DiscoveryAgentVersion: params.NewHostParams.DiscoveryAgentVersion,
 		UserName:              ocm.UserNameFromContext(ctx),

@@ -22,12 +22,13 @@ import (
 )
 
 var _ = Describe("chrony manifest", func() {
-	createHost := func(sources []*models.NtpSource) *models.Host {
+	createHost := func(sources []*models.NtpSource, clusterID strfmt.UUID) *models.Host {
 		b, err := json.Marshal(&sources)
 		Expect(err).ShouldNot(HaveOccurred())
 		hostID := strfmt.UUID(uuid.New().String())
 		return &models.Host{
 			ID:         &hostID,
+			ClusterID:  clusterID,
 			NtpSources: string(b),
 		}
 	}
@@ -53,8 +54,8 @@ var _ = Describe("chrony manifest", func() {
 			}
 
 			hosts := make([]*models.Host, 0)
-			hosts = append(hosts, createHost(toMarshal))
-			hosts = append(hosts, createHost(toMarshal))
+			hosts = append(hosts, createHost(toMarshal, strfmt.UUID(uuid.New().String())))
+			hosts = append(hosts, createHost(toMarshal, strfmt.UUID(uuid.New().String())))
 
 			response, err := createChronyManifestContent(&common.Cluster{Cluster: models.Cluster{
 				Hosts: hosts,
@@ -72,7 +73,7 @@ var _ = Describe("chrony manifest", func() {
 			}
 
 			hosts := make([]*models.Host, 0)
-			hosts = append(hosts, createHost(toMarshal))
+			hosts = append(hosts, createHost(toMarshal, strfmt.UUID(uuid.New().String())))
 			hosts[0].Status = swag.String(models.HostStatusDisabled)
 
 			response, err := createChronyManifestContent(&common.Cluster{Cluster: models.Cluster{
@@ -91,8 +92,8 @@ var _ = Describe("chrony manifest", func() {
 			}
 
 			hosts := make([]*models.Host, 0)
-			hosts = append(hosts, createHost(toMarshal))
-			hosts = append(hosts, createHost([]*models.NtpSource{{SourceName: "3.3.3.3", SourceState: models.SourceStateSynced}}))
+			hosts = append(hosts, createHost(toMarshal, strfmt.UUID(uuid.New().String())))
+			hosts = append(hosts, createHost([]*models.NtpSource{{SourceName: "3.3.3.3", SourceState: models.SourceStateSynced}}, strfmt.UUID(uuid.New().String())))
 
 			response, err := createChronyManifestContent(&common.Cluster{Cluster: models.Cluster{
 				Hosts: hosts,
@@ -131,8 +132,8 @@ var _ = Describe("chrony manifest", func() {
 			hosts = append(hosts, createHost([]*models.NtpSource{
 				common.TestNTPSourceSynced,
 				common.TestNTPSourceUnsynced,
-			}))
-			hosts = append(hosts, createHost([]*models.NtpSource{{SourceName: "3.3.3.3", SourceState: models.SourceStateSynced}}))
+			}, clusterId))
+			hosts = append(hosts, createHost([]*models.NtpSource{{SourceName: "3.3.3.3", SourceState: models.SourceStateSynced}}, clusterId))
 
 			cluster = common.Cluster{
 				Cluster: models.Cluster{

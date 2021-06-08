@@ -116,10 +116,11 @@ func addHost(role models.HostRole, state string, clusterId strfmt.UUID, db *gorm
 
 	hostId := strfmt.UUID(uuid.New().String())
 	host := models.Host{
-		ID:        &hostId,
-		ClusterID: clusterId,
-		Status:    swag.String(state),
-		Role:      role,
+		ID:               &hostId,
+		ClusterID:        clusterId,
+		CurrentClusterID: clusterId,
+		Status:           swag.String(state),
+		Role:             role,
 	}
 	Expect(db.Create(&host).Error).ShouldNot(HaveOccurred())
 	return hostId

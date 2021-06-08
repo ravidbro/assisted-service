@@ -1126,6 +1126,7 @@ var _ = Describe("Refresh Cluster - No DHCP", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -1414,6 +1415,7 @@ var _ = Describe("RefreshCluster - preparing for install", func() {
 			Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 			for i := range t.hosts {
 				t.hosts[i].ClusterID = clusterId
+				t.hosts[i].CurrentClusterID = clusterId
 				Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 			}
 			cluster = getClusterFromDB(clusterId, db)
@@ -1859,6 +1861,7 @@ var _ = Describe("Refresh Cluster - Advanced networking validations", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -2261,6 +2264,7 @@ var _ = Describe("Refresh Cluster - Advanced networking validations", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -2772,6 +2776,7 @@ var _ = Describe("Refresh Cluster - With DHCP", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -3125,6 +3130,7 @@ var _ = Describe("Refresh Cluster - Installing Cases", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -3647,6 +3653,7 @@ var _ = Describe("NTP refresh cluster", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -4006,6 +4013,7 @@ var _ = Describe("NTP refresh cluster", func() {
 				Expect(db.Create(&cluster).Error).ShouldNot(HaveOccurred())
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
@@ -4317,6 +4325,7 @@ var _ = Describe("Single node", func() {
 				mockIsValidMasterCandidate()
 				for i := range t.hosts {
 					t.hosts[i].ClusterID = clusterId
+					t.hosts[i].CurrentClusterID = clusterId
 					Expect(db.Create(&t.hosts[i]).Error).ShouldNot(HaveOccurred())
 				}
 				cluster = getClusterFromDB(clusterId, db)
