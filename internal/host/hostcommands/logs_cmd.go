@@ -44,7 +44,7 @@ func (i *logsCmd) GetSteps(ctx context.Context, host *models.Host) ([]*models.St
 	if host.Bootstrap {
 		mastersIPs, err = i.getNonBootstrapMastersIPsInHostCluster(ctx, host)
 		if err != nil {
-			i.log.WithError(err).Errorf("Failed to get non-bootstrap masters IPs from cluster %s", host.ClusterID)
+			i.log.WithError(err).Errorf("Failed to get non-bootstrap masters IPs from cluster %s", host.CurrentClusterID)
 			return nil, err
 		}
 	}
@@ -107,7 +107,7 @@ func createUploadLogsCmd(host *models.Host, baseURL, agentImage, mastersIPs stri
 }
 
 func (i *logsCmd) getNonBootstrapMastersIPsInHostCluster(ctx context.Context, host *models.Host) ([]string, error) {
-	cluster, err := common.GetClusterFromDB(i.db, host.ClusterID, common.UseEagerLoading)
+	cluster, err := common.GetClusterFromDB(i.db, host.CurrentClusterID, common.UseEagerLoading)
 	if err != nil {
 		i.log.WithError(err).Errorf("failed to get cluster for host %s", host.ID)
 		return nil, err

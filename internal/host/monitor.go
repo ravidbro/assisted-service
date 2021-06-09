@@ -32,12 +32,18 @@ func (m *Manager) initMonitoringQueryGenerator() {
 		models.HostStatusInstalled,
 		models.HostStatusInstallingPendingUserAction,
 		models.HostStatusResettingPendingUserAction,
+		models.HostStatusKnownPoolCluster,
+		models.HostStatusDisconnectedPoolCluster,
+		models.HostStatusInsufficientPoolCluster,
+		models.HostStatusDisabledPoolCluster,
+		models.HostStatusDiscoveringPoolCluster,
+		models.HostStatusWaitingToBeRegistered,
 		models.HostStatusCancelled, // for limited time, until log collection finished or timed-out
 		models.HostStatusError,     // for limited time, until log collection finished or timed-out
 	}
 	if m.monitorQueryGenerator == nil {
 		dbWithCondition := m.db.Preload("Hosts", "status in (?)", monitorStates).Preload(common.MonitoredOperatorsTable).
-			Where("exists (select 1 from hosts where clusters.id = hosts.cluster_id)")
+			Where("exists (select 1 from hosts where clusters.id = hosts.current_cluster_id)")
 		m.monitorQueryGenerator = common.NewMonitorQueryGenerator(m.db, dbWithCondition, m.Config.MonitorBatchSize)
 	}
 }

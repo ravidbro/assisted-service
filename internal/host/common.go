@@ -40,7 +40,12 @@ const (
 
 var hostStatusesBeforeInstallation = [...]string{
 	models.HostStatusDiscovering, models.HostStatusKnown, models.HostStatusDisconnected,
-	models.HostStatusInsufficient, models.HostStatusPendingForInput, models.HostStatusReadyToBeMoved,
+	models.HostStatusInsufficient, models.HostStatusPendingForInput,
+}
+
+var poolClusterHostStatuses = [...]string{
+	models.HostStatusKnownPoolCluster, models.HostStatusInsufficientPoolCluster, models.HostStatusDisconnectedPoolCluster,
+	models.HostStatusDiscoveringPoolCluster,
 }
 
 type UpdateReply struct {

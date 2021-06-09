@@ -28,7 +28,7 @@ func NewConnectivityCheckCmd(log logrus.FieldLogger, db *gorm.DB, connectivityVa
 func (c *connectivityCheckCmd) GetSteps(ctx context.Context, host *models.Host) ([]*models.Step, error) {
 
 	var hosts []*models.Host
-	if err := c.db.Find(&hosts, "cluster_id = ?", host.ClusterID).Error; err != nil {
+	if err := c.db.Find(&hosts, "current_cluster_id = ?", host.CurrentClusterID).Error; err != nil {
 		c.log.WithError(err).Errorf("failed to get list of hosts for cluster %s", host.ClusterID)
 		return nil, err
 	}

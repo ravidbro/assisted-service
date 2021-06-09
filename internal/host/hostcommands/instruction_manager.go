@@ -110,12 +110,12 @@ func NewInstructionManager(log logrus.FieldLogger, db *gorm.DB, hwValidator hard
 			models.HostStatusWaitingToBeRegistered: {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
 		},
 		poolClusterToSteps: stateToStepsMap{
-			models.HostStatusDiscovering:           {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
-			models.HostStatusDisconnected:          {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
-			models.HostStatusDisabled:              {[]CommandGetter{}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
-			models.HostStatusInsufficient:          {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
-			models.HostStatusReadyToBeMoved:        {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
-			models.HostStatusWaitingToBeRegistered: {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
+			models.HostStatusDiscoveringPoolCluster:  {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisconnectedPoolCluster: {[]CommandGetter{inventoryCmd}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusDisabledPoolCluster:     {[]CommandGetter{}, defaultBackedOffInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusInsufficientPoolCluster: {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusKnownPoolCluster:        {[]CommandGetter{inventoryCmd}, defaultNextInstructionInSec, models.StepsPostStepActionContinue},
+			models.HostStatusWaitingToBeRegistered:   {[]CommandGetter{emptyCmd}, defaultNextInstructionInSec, models.StepsPostStepActionExit},
 		},
 	}
 }

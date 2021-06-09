@@ -6545,8 +6545,12 @@ func init() {
             "resetting",
             "added-to-existing-cluster",
             "cancelled",
-            "ready-to-be-moved",
-            "waiting-to-be-registered"
+            "waiting-to-be-registered",
+            "known-pool-cluster",
+            "disconnected-pool-cluster",
+            "insufficient-pool-cluster",
+            "disabled-pool-cluster",
+            "discovering-pool-cluster"
           ]
         },
         "status_info": {
@@ -14366,8 +14370,12 @@ func init() {
             "resetting",
             "added-to-existing-cluster",
             "cancelled",
-            "ready-to-be-moved",
-            "waiting-to-be-registered"
+            "waiting-to-be-registered",
+            "known-pool-cluster",
+            "disconnected-pool-cluster",
+            "insufficient-pool-cluster",
+            "disabled-pool-cluster",
+            "discovering-pool-cluster"
           ]
         },
         "status_info": {

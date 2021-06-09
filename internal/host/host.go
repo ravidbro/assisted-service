@@ -147,12 +147,13 @@ type API interface {
 }
 
 type Manager struct {
-	log                   logrus.FieldLogger
-	db                    *gorm.DB
-	instructionApi        hostcommands.InstructionApi
-	hwValidator           hardware.Validator
-	eventsHandler         events.Handler
-	sm                    map[string]stateswitch.StateMachine
+	log            logrus.FieldLogger
+	db             *gorm.DB
+	instructionApi hostcommands.InstructionApi
+	hwValidator    hardware.Validator
+	eventsHandler  events.Handler
+	//sm                    map[string]stateswitch.StateMachine
+	sm                    stateswitch.StateMachine
 	rp                    *refreshPreprocessor
 	metricApi             metrics.API
 	Config                Config
@@ -168,15 +169,19 @@ func NewManager(log logrus.FieldLogger, db *gorm.DB, eventsHandler events.Handle
 		config:        config,
 		eventsHandler: eventsHandler,
 	}
+	// sm := stateswitch.NewStateMachine()
+	sm := NewHostStateMachine(stateswitch.NewStateMachine(), th)
+	sm = NewPoolClusterHostStateMachine(sm, th)
 	return &Manager{
 		log:            log,
 		db:             db,
 		instructionApi: instructionApi,
 		hwValidator:    hwValidator,
 		eventsHandler:  eventsHandler,
-		sm: map[string]stateswitch.StateMachine{models.HostKindHost: NewHostStateMachine(th),
-			models.HostKindAddToExistingClusterHost: NewHostStateMachine(th),
-			models.HostKindPoolClusterHost:          NewPoolClusterHostStateMachine(th)},
+		//sm: map[string]stateswitch.StateMachine{models.HostKindHost: NewHostStateMachine(th),
+		//	models.HostKindAddToExistingClusterHost: NewHostStateMachine(th),
+		//	models.HostKindPoolClusterHost:          NewPoolClusterHostStateMachine(th)},
+		sm:            sm,
 		rp:            newRefreshPreprocessor(log, hwValidatorCfg, hwValidator, operatorsApi, config.DisabledHostvalidations),
 		metricApi:     metricApi,
 		Config:        *config,
@@ -219,8 +224,8 @@ func (m *Manager) RegisterHost(ctx context.Context, cluster *common.Cluster, hos
 		}
 	*/
 
-	sm := m.sm[swag.StringValue(host.Kind)]
-	return sm.Run(TransitionTypeRegisterHost, newStateHost(host), &TransitionArgsRegisterHost{
+	//sm := m.sm[swag.StringValue(host.Kind)]
+	return m.sm.Run(TransitionTypeRegisterHost, newStateHost(host), &TransitionArgsRegisterHost{
 		ctx:                   ctx,
 		discoveryAgentVersion: host.DiscoveryAgentVersion,
 		db:                    db,
@@ -256,8 +261,8 @@ func (m *Manager) setHostRole(cluster *common.Cluster, host *models.Host) {
 }
 
 func (m *Manager) RegisterInstalledOCPHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	sm := m.sm[swag.StringValue(h.Kind)]
-	return sm.Run(TransitionTypeRegisterInstalledHost, newStateHost(h), &TransitionArgsRegisterInstalledHost{
+	//sm := m.sm[swag.StringValue(h.Kind)]
+	return m.sm.Run(TransitionTypeRegisterInstalledHost, newStateHost(h), &TransitionArgsRegisterInstalledHost{
 		ctx: ctx,
 		db:  db,
 	})
@@ -266,8 +271,8 @@ func (m *Manager) RegisterInstalledOCPHost(ctx context.Context, h *models.Host, 
 func (m *Manager) HandleInstallationFailure(ctx context.Context, h *models.Host) error {
 
 	lastStatusUpdateTime := h.StatusUpdatedAt
-	sm := m.sm[swag.StringValue(h.Kind)]
-	err := sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
+	//sm := m.sm[swag.StringValue(h.Kind)]
+	err := m.sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
 		ctx:    ctx,
 		reason: "installation command failed",
 	})
@@ -317,8 +322,8 @@ func (m *Manager) populateDisksId(inventory *models.Inventory) {
 func (m *Manager) HandlePrepareInstallationFailure(ctx context.Context, h *models.Host, reason string) error {
 
 	lastStatusUpdateTime := h.StatusUpdatedAt
-	sm := m.sm[swag.StringValue(h.Kind)]
-	err := sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
+	//sm := m.sm[swag.StringValue(h.Kind)]
+	err := m.sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
 		ctx:    ctx,
 		reason: reason,
 	})
@@ -335,9 +340,9 @@ func (m *Manager) RefreshInventory(ctx context.Context, cluster *common.Cluster,
 
 func (m *Manager) UpdateInventory(ctx context.Context, h *models.Host, inventoryStr string) error {
 	log := logutil.FromContext(ctx, m.log)
-	cluster, err := common.GetClusterFromDB(m.db, h.ClusterID, common.UseEagerLoading)
+	cluster, err := common.GetClusterFromDB(m.db, h.CurrentClusterID, common.UseEagerLoading)
 	if err != nil {
-		log.WithError(err).Errorf("not updating inventory - failed to find cluster %s", h.ClusterID)
+		log.WithError(err).Errorf("not updating inventory - failed to find cluster %s", h.CurrentClusterID)
 		return common.NewApiError(http.StatusNotFound, err)
 	}
 	return m.updateInventory(ctx, cluster, h, inventoryStr, m.db)
@@ -395,6 +400,7 @@ func (m *Manager) updateInventory(ctx context.Context, cluster *common.Cluster, 
 
 	hostStatus := swag.StringValue(h.Status)
 	allowedStatuses := append(hostStatusesBeforeInstallation[:], models.HostStatusInstallingInProgress)
+	allowedStatuses = append(allowedStatuses, poolClusterHostStatuses[:]...)
 
 	if !funk.ContainsString(allowedStatuses, hostStatus) {
 		return common.NewApiError(http.StatusConflict,
@@ -489,8 +495,8 @@ func (m *Manager) refreshStatusInternal(ctx context.Context, h *models.Host, c *
 		}
 	}
 
-	sm := m.sm[swag.StringValue(h.Kind)]
-	err = sm.Run(TransitionTypeRefresh, newStateHost(h), &TransitionArgsRefreshHost{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	err = m.sm.Run(TransitionTypeRefresh, newStateHost(h), &TransitionArgsRefreshHost{
 		ctx:               ctx,
 		db:                db,
 		eventHandler:      m.eventsHandler,
@@ -515,24 +521,24 @@ func (m *Manager) Install(ctx context.Context, h *models.Host, db *gorm.DB) erro
 	if db != nil {
 		cdb = db
 	}
-	sm := m.sm[swag.StringValue(h.Kind)]
-	return sm.Run(TransitionTypeInstallHost, newStateHost(h), &TransitionArgsInstallHost{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	return m.sm.Run(TransitionTypeInstallHost, newStateHost(h), &TransitionArgsInstallHost{
 		ctx: ctx,
 		db:  cdb,
 	})
 }
 
 func (m *Manager) EnableHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	sm := m.sm[swag.StringValue(h.Kind)]
-	return sm.Run(TransitionTypeEnableHost, newStateHost(h), &TransitionArgsEnableHost{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	return m.sm.Run(TransitionTypeEnableHost, newStateHost(h), &TransitionArgsEnableHost{
 		ctx: ctx,
 		db:  db,
 	})
 }
 
 func (m *Manager) DisableHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	sm := m.sm[swag.StringValue(h.Kind)]
-	return sm.Run(TransitionTypeDisableHost, newStateHost(h), &TransitionArgsDisableHost{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	return m.sm.Run(TransitionTypeDisableHost, newStateHost(h), &TransitionArgsDisableHost{
 		ctx: ctx,
 		db:  db,
 	})
@@ -781,10 +787,11 @@ func (m *Manager) UpdateImageStatus(ctx context.Context, h *models.Host, newImag
 
 func (m *Manager) UpdateHostname(ctx context.Context, h *models.Host, hostname string, db *gorm.DB) error {
 	hostStatus := swag.StringValue(h.Status)
-	if !funk.ContainsString(hostStatusesBeforeInstallation[:], hostStatus) {
+	allowedStatuses := append(hostStatusesBeforeInstallation[:], poolClusterHostStatuses[:]...)
+	if !funk.ContainsString(allowedStatuses, hostStatus) {
 		return common.NewApiError(http.StatusBadRequest,
 			errors.Errorf("Host is in %s state, host name can be set only in one of %s states",
-				hostStatus, hostStatusesBeforeInstallation[:]))
+				hostStatus, allowedStatuses))
 	}
 
 	h.RequestedHostname = hostname
@@ -797,10 +804,11 @@ func (m *Manager) UpdateHostname(ctx context.Context, h *models.Host, hostname s
 
 func (m *Manager) UpdateInstallationDisk(ctx context.Context, db *gorm.DB, h *models.Host, installationDiskPath string) error {
 	hostStatus := swag.StringValue(h.Status)
-	if !funk.ContainsString(hostStatusesBeforeInstallation[:], hostStatus) {
+	allowedStatuses := append(hostStatusesBeforeInstallation[:], poolClusterHostStatuses[:]...)
+	if !funk.ContainsString(allowedStatuses, hostStatus) {
 		return common.NewApiError(http.StatusBadRequest,
 			errors.Errorf("Host is in %s state, host name can be set only in one of %s states",
-				hostStatus, hostStatusesBeforeInstallation[:]))
+				hostStatus, allowedStatuses))
 	}
 
 	validDisks, err := m.hwValidator.GetHostValidDisks(h)
@@ -837,8 +845,8 @@ func (m *Manager) CancelInstallation(ctx context.Context, h *models.Host, reason
 		}
 	}()
 
-	sm := m.sm[swag.StringValue(h.Kind)]
-	err := sm.Run(TransitionTypeCancelInstallation, newStateHost(h), &TransitionArgsCancelInstallation{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	err := m.sm.Run(TransitionTypeCancelInstallation, newStateHost(h), &TransitionArgsCancelInstallation{
 		ctx:    ctx,
 		reason: reason,
 		db:     db,
@@ -898,8 +906,8 @@ func (m *Manager) ResetHost(ctx context.Context, h *models.Host, reason string, 
 		}
 	}
 
-	sm := m.sm[swag.StringValue(h.Kind)]
-	if err := sm.Run(transitionType, newStateHost(h), transitionArgs); err != nil {
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	if err := m.sm.Run(transitionType, newStateHost(h), transitionArgs); err != nil {
 		eventSeverity = models.EventSeverityError
 		eventInfo = fmt.Sprintf("Failed to reset installation of host %s. Error: %s", hostutil.GetHostnameForMsg(h), err.Error())
 		return common.NewApiError(http.StatusConflict, err)
@@ -919,8 +927,8 @@ func (m *Manager) ResetPendingUserAction(ctx context.Context, h *models.Host, db
 		}
 	}()
 
-	sm := m.sm[swag.StringValue(h.Kind)]
-	err := sm.Run(TransitionTypeResettingPendingUserAction, newStateHost(h), &TransitionResettingPendingUserAction{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	err := m.sm.Run(TransitionTypeResettingPendingUserAction, newStateHost(h), &TransitionResettingPendingUserAction{
 		ctx: ctx,
 		db:  db,
 	})
@@ -1177,8 +1185,8 @@ func (m *Manager) BindHost(ctx context.Context, h *models.Host, db *gorm.DB, new
 		log.WithError(err).Errorf("failed to bind host %s", *h.ID)
 		return err
 	}
-	sm := m.sm[swag.StringValue(h.Kind)]
-	return sm.Run(TransitionTypeBindHost, newStateHost(h), &TransitionArgsBindHost{
+	// sm := m.sm[swag.StringValue(h.Kind)]
+	return m.sm.Run(TransitionTypeBindHost, newStateHost(h), &TransitionArgsBindHost{
 		ctx: ctx,
 		db:  db,
 	})

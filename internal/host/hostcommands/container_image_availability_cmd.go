@@ -68,8 +68,8 @@ func (cmd *imageAvailabilityCmd) getImages(cluster *common.Cluster) (Images, err
 
 func (cmd *imageAvailabilityCmd) prepareParam(host *models.Host) (string, error) {
 	var cluster common.Cluster
-	if err := cmd.db.First(&cluster, "id = ?", host.ClusterID).Error; err != nil {
-		cmd.log.Errorf("failed to get cluster %s", host.ClusterID)
+	if err := cmd.db.First(&cluster, "id = ?", host.CurrentClusterID).Error; err != nil {
+		cmd.log.Errorf("failed to get cluster %s", host.CurrentClusterID)
 		return "", err
 	}
 

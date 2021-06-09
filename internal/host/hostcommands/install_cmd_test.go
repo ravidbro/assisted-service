@@ -923,6 +923,7 @@ func createHostInDb(db *gorm.DB, clusterId strfmt.UUID, role models.HostRole, bo
 	host := models.Host{
 		ID:                &id,
 		ClusterID:         clusterId,
+		CurrentClusterID:  clusterId,
 		Status:            swag.String(models.HostStatusDiscovering),
 		Role:              role,
 		Bootstrap:         bootstrap,

@@ -5,41 +5,50 @@ import (
 	"github.com/openshift/assisted-service/models"
 )
 
-func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
-	sm := stateswitch.NewStateMachine()
+func NewPoolClusterHostStateMachine(sm stateswitch.StateMachine, th *transitionHandler) stateswitch.StateMachine {
+	// sm := stateswitch.NewStateMachine()
 
-	// Register host
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRegisterHost,
 		SourceStates: []stateswitch.State{
 			"",
 			stateswitch.State(models.HostStatusWaitingToBeRegistered),
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
 		},
-		DestinationState: stateswitch.State(models.HostStatusDiscovering),
+		Condition:        th.IsPoolClusterHost,
+		DestinationState: stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+		PostTransition:   th.PostRegisterHost,
+	})
+
+	// Register host
+	sm.AddTransition(stateswitch.TransitionRule{
+		TransitionType: TransitionTypeRegisterHost,
+		SourceStates: []stateswitch.State{
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
+			stateswitch.State(models.HostStatusInsufficientPoolCluster),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
+		},
+		DestinationState: stateswitch.State(models.HostStatusDiscoveringPoolCluster),
 		PostTransition:   th.PostRegisterHost,
 	})
 
 	// Disabled host can register if it was booted, no change in the state.
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType:   TransitionTypeRegisterHost,
-		SourceStates:     []stateswitch.State{stateswitch.State(models.HostStatusDisabled)},
-		DestinationState: stateswitch.State(models.HostStatusDisabled),
+		SourceStates:     []stateswitch.State{stateswitch.State(models.HostStatusDisabledPoolCluster)},
+		DestinationState: stateswitch.State(models.HostStatusDisabledPoolCluster),
 	})
 
 	// Disable host
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeDisableHost,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+			stateswitch.State(models.HostStatusInsufficientPoolCluster),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
 		},
-		DestinationState: stateswitch.State(models.HostStatusDisabled),
+		DestinationState: stateswitch.State(models.HostStatusDisabledPoolCluster),
 		PostTransition:   th.PostDisableHost,
 	})
 
@@ -47,9 +56,9 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeEnableHost,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDisabled),
+			stateswitch.State(models.HostStatusDisabledPoolCluster),
 		},
-		DestinationState: stateswitch.State(models.HostStatusDiscovering),
+		DestinationState: stateswitch.State(models.HostStatusDiscoveringPoolCluster),
 		PostTransition:   th.PostEnableHost,
 	})
 
@@ -57,13 +66,7 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeBindHost,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusKnown),
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusPendingForInput),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
-			stateswitch.State(models.HostStatusWaitingToBeRegistered),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
 		},
 		DestinationState: stateswitch.State(models.HostStatusWaitingToBeRegistered),
 		PostTransition:   th.PostBindHost,
@@ -74,24 +77,24 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRefresh,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
-			stateswitch.State(models.HostStatusDisconnected),
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+			stateswitch.State(models.HostStatusInsufficientPoolCluster),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
 		},
 		Condition:        stateswitch.Not(If(IsConnected)),
-		DestinationState: stateswitch.State(models.HostStatusDisconnected),
+		DestinationState: stateswitch.State(models.HostStatusDisconnectedPoolCluster),
 		PostTransition:   th.PostRefreshHost(statusInfoDisconnected),
 	})
 
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRefresh,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusDiscovering),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
 		},
 		Condition:        stateswitch.And(If(IsConnected), stateswitch.Not(If(HasInventory))),
-		DestinationState: stateswitch.State(models.HostStatusDiscovering),
+		DestinationState: stateswitch.State(models.HostStatusDiscoveringPoolCluster),
 		PostTransition:   th.PostRefreshHost(statusInfoDiscovering),
 	})
 
@@ -102,20 +105,20 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRefresh,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+			stateswitch.State(models.HostStatusInsufficientPoolCluster),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
 		},
 		Condition: stateswitch.And(If(IsConnected), If(HasInventory),
 			stateswitch.Not(hasMinRequiredHardware)),
-		DestinationState: stateswitch.State(models.HostStatusInsufficient),
+		DestinationState: stateswitch.State(models.HostStatusInsufficientPoolCluster),
 		PostTransition:   th.PostRefreshHost(statusInfoInsufficientHardware),
 	})
 
 	// Noop transitions
 	for _, state := range []stateswitch.State{
-		stateswitch.State(models.HostStatusDisabled),
+		stateswitch.State(models.HostStatusDisabledPoolCluster),
 		stateswitch.State(models.HostStatusWaitingToBeRegistered),
 	} {
 		sm.AddTransition(stateswitch.TransitionRule{
@@ -128,14 +131,14 @@ func NewPoolClusterHostStateMachine(th *transitionHandler) stateswitch.StateMach
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRefresh,
 		SourceStates: []stateswitch.State{
-			stateswitch.State(models.HostStatusDisconnected),
-			stateswitch.State(models.HostStatusDiscovering),
-			stateswitch.State(models.HostStatusInsufficient),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
+			stateswitch.State(models.HostStatusDisconnectedPoolCluster),
+			stateswitch.State(models.HostStatusDiscoveringPoolCluster),
+			stateswitch.State(models.HostStatusInsufficientPoolCluster),
+			stateswitch.State(models.HostStatusKnownPoolCluster),
 		},
 		Condition: stateswitch.And(If(IsConnected), If(HasInventory),
 			hasMinRequiredHardware),
-		DestinationState: stateswitch.State(models.HostStatusReadyToBeMoved),
+		DestinationState: stateswitch.State(models.HostStatusKnownPoolCluster),
 		PostTransition:   th.PostRefreshHost(statusInfoHostReadyToBeMoved),
 	})
 

@@ -38,7 +38,7 @@ func (f *ntpSynchronizerCmd) prepareParam(host *models.Host, cluster *common.Clu
 
 func (f *ntpSynchronizerCmd) GetSteps(ctx context.Context, host *models.Host) ([]*models.Step, error) {
 	var cluster common.Cluster
-	if err := f.db.Take(&cluster, "id = ?", host.ClusterID.String()).Error; err != nil {
+	if err := f.db.Take(&cluster, "id = ?", host.CurrentClusterID.String()).Error; err != nil {
 		return nil, err
 	}
 

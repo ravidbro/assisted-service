@@ -19,15 +19,24 @@ const (
 	TransitionTypeRegisterInstalledHost      = "RegisterInstalledHost"
 )
 
-func NewHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
-	sm := stateswitch.NewStateMachine()
+func NewHostStateMachine(sm stateswitch.StateMachine, th *transitionHandler) stateswitch.StateMachine {
+	// sm := stateswitch.NewStateMachine()
 
-	// Register host
 	sm.AddTransition(stateswitch.TransitionRule{
 		TransitionType: TransitionTypeRegisterHost,
 		SourceStates: []stateswitch.State{
 			"",
 			stateswitch.State(models.HostStatusWaitingToBeRegistered),
+		},
+		Condition:        stateswitch.Not(th.IsPoolClusterHost),
+		DestinationState: stateswitch.State(models.HostStatusDiscovering),
+		PostTransition:   th.PostRegisterHost,
+	})
+
+	// Register host
+	sm.AddTransition(stateswitch.TransitionRule{
+		TransitionType: TransitionTypeRegisterHost,
+		SourceStates: []stateswitch.State{
 			stateswitch.State(models.HostStatusDiscovering),
 			stateswitch.State(models.HostStatusKnown),
 			stateswitch.State(models.HostStatusDisconnected),
@@ -264,7 +273,6 @@ func NewHostStateMachine(th *transitionHandler) stateswitch.StateMachine {
 			stateswitch.State(models.HostStatusDiscovering),
 			stateswitch.State(models.HostStatusInsufficient),
 			stateswitch.State(models.HostStatusPendingForInput),
-			stateswitch.State(models.HostStatusReadyToBeMoved),
 			stateswitch.State(models.HostStatusWaitingToBeRegistered),
 		},
 		DestinationState: stateswitch.State(models.HostStatusWaitingToBeRegistered),

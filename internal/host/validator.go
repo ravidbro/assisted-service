@@ -74,7 +74,7 @@ type validation struct {
 func (c *validationContext) loadCluster() error {
 	var err error
 	if c.cluster == nil {
-		c.cluster, err = common.GetClusterFromDBWithoutDisabledHosts(c.db, c.host.ClusterID)
+		c.cluster, err = common.GetClusterFromDBWithoutDisabledHosts(c.db, c.host.CurrentClusterID)
 	}
 	return err
 }

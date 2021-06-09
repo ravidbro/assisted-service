@@ -466,6 +466,74 @@ var _ = Describe("RegisterHost", func() {
 		}
 	})
 
+	Context("register after binding", func() {
+		tests := []struct {
+			name        string
+			srcState    string
+			dstState    string
+			clusterKind string
+			hostKind    string
+		}{
+			{
+				name:        "register after bind day1",
+				srcState:    models.HostStatusWaitingToBeRegistered,
+				dstState:    models.HostStatusDiscovering,
+				clusterKind: models.ClusterKindCluster,
+				hostKind:    models.HostKindHost,
+			},
+			{
+				name:        "register after bind day2",
+				srcState:    models.HostStatusWaitingToBeRegistered,
+				dstState:    models.HostStatusDiscovering,
+				clusterKind: models.ClusterKindAddHostsCluster,
+				hostKind:    models.HostKindAddToExistingClusterHost,
+			},
+			{
+				name:        "register after bind pool cluster",
+				srcState:    models.HostStatusWaitingToBeRegistered,
+				dstState:    models.HostStatusDiscoveringPoolCluster,
+				clusterKind: models.ClusterKindPoolCluster,
+				hostKind:    models.HostKindPoolClusterHost,
+			},
+		}
+		for i := range tests {
+			t := tests[i]
+
+			It(fmt.Sprintf("register %s host after bind", t.srcState), func() {
+				Expect(db.Create(&models.Host{
+					ID:                   &hostId,
+					ClusterID:            clusterId,
+					CurrentClusterID:     clusterId,
+					Role:                 "some role",
+					Inventory:            common.GenerateTestDefaultInventory(),
+					Status:               swag.String(t.srcState),
+					InstallationDiskPath: common.TestDiskId,
+					Kind:                 &t.hostKind,
+				}).Error).ShouldNot(HaveOccurred())
+				mockEvents.EXPECT().AddEvent(gomock.Any(), clusterId, &hostId, models.EventSeverityInfo,
+					fmt.Sprintf("Host %s: updated status from \"%s\" to \"%s\" (%s)",
+						hostId.String(), t.srcState, t.dstState, statusInfoDiscovering),
+					gomock.Any())
+				hostCluster := hostutil.GenerateTestCluster(clusterId, "10.0.0.1/24")
+				hostCluster.Kind = &t.clusterKind
+				Expect(hapi.RegisterHost(ctx, &hostCluster, &models.Host{
+					ID:                   &hostId,
+					ClusterID:            clusterId,
+					Role:                 "someRole",
+					Inventory:            common.GenerateTestDefaultInventory(),
+					InstallationDiskPath: common.TestDiskId,
+					Kind:                 &t.hostKind,
+					Progress:             &models.HostProgressInfo{},
+					Status:               swag.String(t.srcState),
+				},
+					db)).ShouldNot(HaveOccurred())
+
+				h := hostutil.GetHostFromDB(hostId, clusterId, db)
+				Expect(swag.StringValue(h.Status)).Should(Equal(t.dstState))
+			})
+		}
+	})
+
 	AfterEach(func() {
 		common.DeleteTestDB(db, dbName)
 		ctrl.Finish()

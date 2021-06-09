@@ -134,7 +134,7 @@ type Host struct {
 
 	// status
 	// Required: true
-	// Enum: [discovering known disconnected insufficient disabled preparing-for-installation preparing-successful pending-for-input installing installing-in-progress installing-pending-user-action resetting-pending-user-action installed error resetting added-to-existing-cluster cancelled ready-to-be-moved waiting-to-be-registered]
+	// Enum: [discovering known disconnected insufficient disabled preparing-for-installation preparing-successful pending-for-input installing installing-in-progress installing-pending-user-action resetting-pending-user-action installed error resetting added-to-existing-cluster cancelled waiting-to-be-registered known-pool-cluster disconnected-pool-cluster insufficient-pool-cluster disabled-pool-cluster discovering-pool-cluster]
 	Status *string `json:"status"`
 
 	// status info
@@ -505,7 +505,7 @@ var hostTypeStatusPropEnum []interface{}
 
 func init() {
 	var res []string
-	if err := json.Unmarshal([]byte(`["discovering","known","disconnected","insufficient","disabled","preparing-for-installation","preparing-successful","pending-for-input","installing","installing-in-progress","installing-pending-user-action","resetting-pending-user-action","installed","error","resetting","added-to-existing-cluster","cancelled","ready-to-be-moved","waiting-to-be-registered"]`), &res); err != nil {
+	if err := json.Unmarshal([]byte(`["discovering","known","disconnected","insufficient","disabled","preparing-for-installation","preparing-successful","pending-for-input","installing","installing-in-progress","installing-pending-user-action","resetting-pending-user-action","installed","error","resetting","added-to-existing-cluster","cancelled","waiting-to-be-registered","known-pool-cluster","disconnected-pool-cluster","insufficient-pool-cluster","disabled-pool-cluster","discovering-pool-cluster"]`), &res); err != nil {
 		panic(err)
 	}
 	for _, v := range res {
@@ -566,11 +566,23 @@ const (
 	// HostStatusCancelled captures enum value "cancelled"
 	HostStatusCancelled string = "cancelled"
 
-	// HostStatusReadyToBeMoved captures enum value "ready-to-be-moved"
-	HostStatusReadyToBeMoved string = "ready-to-be-moved"
-
 	// HostStatusWaitingToBeRegistered captures enum value "waiting-to-be-registered"
 	HostStatusWaitingToBeRegistered string = "waiting-to-be-registered"
+
+	// HostStatusKnownPoolCluster captures enum value "known-pool-cluster"
+	HostStatusKnownPoolCluster string = "known-pool-cluster"
+
+	// HostStatusDisconnectedPoolCluster captures enum value "disconnected-pool-cluster"
+	HostStatusDisconnectedPoolCluster string = "disconnected-pool-cluster"
+
+	// HostStatusInsufficientPoolCluster captures enum value "insufficient-pool-cluster"
+	HostStatusInsufficientPoolCluster string = "insufficient-pool-cluster"
+
+	// HostStatusDisabledPoolCluster captures enum value "disabled-pool-cluster"
+	HostStatusDisabledPoolCluster string = "disabled-pool-cluster"
+
+	// HostStatusDiscoveringPoolCluster captures enum value "discovering-pool-cluster"
+	HostStatusDiscoveringPoolCluster string = "discovering-pool-cluster"
 )
 
 // prop value enum

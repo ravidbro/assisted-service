@@ -2226,7 +2226,7 @@ func (b *bareMetalInventory) updateHostRoles(ctx context.Context, params install
 	for i := range params.ClusterUpdateParams.HostsRoles {
 		hostRole := params.ClusterUpdateParams.HostsRoles[i]
 		log.Infof("Update host %s to role: %s", hostRole.ID, hostRole.Role)
-		host, err := common.GetHostFromDB(db, params.ClusterID.String(), hostRole.ID.String())
+		host, err := common.GetHostFromDBByCurrentCluster(db, params.ClusterID.String(), hostRole.ID.String())
 		if err != nil {
 			log.WithError(err).Errorf("failed to find host <%s> in cluster <%s>",
 				hostRole.ID, params.ClusterID)
@@ -2249,7 +2249,7 @@ func (b *bareMetalInventory) updateHostNames(ctx context.Context, params install
 		hostName := params.ClusterUpdateParams.HostsNames[i]
 		log.Infof("Update host %s to request hostname %s", hostName.ID,
 			hostName.Hostname)
-		host, err := common.GetHostFromDB(db, params.ClusterID.String(), hostName.ID.String())
+		host, err := common.GetHostFromDBByCurrentCluster(db, params.ClusterID.String(), hostName.ID.String())
 		if err != nil {
 			log.WithError(err).Errorf("failed to find host <%s> in cluster <%s>",
 				hostName.ID, params.ClusterID)
@@ -2277,7 +2277,7 @@ func (b *bareMetalInventory) updateHostsDiskSelection(ctx context.Context, param
 	for i := range params.ClusterUpdateParams.DisksSelectedConfig {
 		disksConfig := params.ClusterUpdateParams.DisksSelectedConfig[i]
 		hostId := string(disksConfig.ID)
-		host, err := common.GetHostFromDB(db, params.ClusterID.String(), hostId)
+		host, err := common.GetHostFromDBByCurrentCluster(db, params.ClusterID.String(), hostId)
 
 		if err != nil {
 			return common.NewApiError(http.StatusNotFound, err)
@@ -2313,7 +2313,7 @@ func (b *bareMetalInventory) updateHostsMachineConfigPoolNames(ctx context.Conte
 		poolNameConfig := params.ClusterUpdateParams.HostsMachineConfigPoolNames[i]
 		log.Infof("Update host %s to machineConfigPoolName %s", poolNameConfig.ID,
 			poolNameConfig.MachineConfigPoolName)
-		host, err := common.GetHostFromDB(db, params.ClusterID.String(), poolNameConfig.ID.String())
+		host, err := common.GetHostFromDBByCurrentCluster(db, params.ClusterID.String(), poolNameConfig.ID.String())
 
 		if err != nil {
 			log.WithError(err).Errorf("failed to find host <%s> in cluster <%s>",
@@ -2595,52 +2595,8 @@ func (b *bareMetalInventory) RegisterHost(ctx context.Context, params installer.
 				err.Error(), time.Now())
 			return common.NewApiError(http.StatusConflict, err)
 		}
-		// Delete any previews record of the host if it was soft deleted from the cluster,
-		// no error will be returned if the host was not existed.
-		/*
-			if err = tx.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", params.NewHostParams.HostID, params.ClusterID).Error; err != nil {
-				log.WithError(err).Errorf("error while trying to delete previews record from db (if exists) of host %s in cluster %s",
-					params.NewHostParams.HostID.String(), params.ClusterID.String())
-				return installer.NewRegisterHostInternalServerError().
-					WithPayload(common.GenerateError(http.StatusInternalServerError, err))
-			}
-		*/
 	}
 
-	// b.setHostKind(&cluster, host)
-	// b.setHostRole(&cluster, host)
-	/*
-		url := installer.GetHostURL{ClusterID: params.ClusterID, HostID: *params.NewHostParams.HostID}
-		kind := swag.String(models.HostKindHost)
-		if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
-			kind = swag.String(models.HostKindAddToExistingClusterHost)
-		}
-		if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
-			kind = swag.String(models.HostKindPoolClusterHost)
-		}
-
-		// We immediately set the role to master in single node clusters to have more strict (master) validations.
-		// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
-		// which has less strict hardware requirements. This early role assignment results in clearer, more early
-		// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
-		// extra nodes (as workers). In that case, this line might need to be removed.
-		defaultRole := models.HostRoleAutoAssign
-		if common.IsSingleNodeCluster(&cluster) {
-			defaultRole = models.HostRoleMaster
-		}
-
-		host := &models.Host{
-			ID:                    params.NewHostParams.HostID,
-			Href:                  swag.String(url.String()),
-			Kind:                  kind,
-			ClusterID:             params.ClusterID,
-			CurrentClusterID:      params.ClusterID,
-			CheckedInAt:           strfmt.DateTime(time.Now()),
-			DiscoveryAgentVersion: params.NewHostParams.DiscoveryAgentVersion,
-			UserName:              ocm.UserNameFromContext(ctx),
-			Role:                  defaultRole,
-		}
-	*/
 	if err = b.hostApi.RegisterHost(ctx, &cluster, host, tx); err != nil {
 		log.WithError(err).Errorf("failed to register host <%s> cluster <%s>",
 			params.NewHostParams.HostID.String(), params.ClusterID.String())
@@ -2835,7 +2791,7 @@ func (b *bareMetalInventory) GetHostById(hostId string) (*common.Host, error) {
 func (b *bareMetalInventory) ListHosts(ctx context.Context, params installer.ListHostsParams) middleware.Responder {
 	log := logutil.FromContext(ctx, b.log)
 	var hosts []*models.Host
-	if err := b.db.Find(&hosts, "cluster_id = ?", params.ClusterID).Error; err != nil {
+	if err := b.db.Find(&hosts, "current_cluster_id = ?", params.ClusterID).Error; err != nil {
 		log.WithError(err).Errorf("failed to get list of hosts for cluster %s", params.ClusterID)
 		return installer.NewListHostsInternalServerError().
 			WithPayload(common.GenerateError(http.StatusInternalServerError, err))
@@ -3062,12 +3018,12 @@ func (b *bareMetalInventory) processDhcpAllocationResponse(ctx context.Context, 
 		cluster               common.Cluster
 	)
 	log := logutil.FromContext(ctx, b.log)
-	if err = b.db.Take(&cluster, "id = ?", host.ClusterID.String()).Error; err != nil {
-		log.WithError(err).Warnf("Get cluster %s", host.ClusterID.String())
+	if err = b.db.Take(&cluster, "id = ?", host.CurrentClusterID.String()).Error; err != nil {
+		log.WithError(err).Warnf("Get cluster %s", host.CurrentClusterID.String())
 		return err
 	}
 	if !swag.BoolValue(cluster.VipDhcpAllocation) {
-		err = errors.Errorf("DHCP not enabled in cluster %s", host.ClusterID.String())
+		err = errors.Errorf("DHCP not enabled in cluster %s", host.CurrentClusterID.String())
 		log.WithError(err).Warn("processDhcpAllocationResponse")
 		return err
 	}
@@ -3153,7 +3109,7 @@ func (b *bareMetalInventory) processDiskSpeedCheckResponse(ctx context.Context, 
 }
 
 func (b *bareMetalInventory) getInstallationDiskSpeedThresholdMs(ctx context.Context, h *models.Host) (int64, error) {
-	cluster, err := common.GetClusterFromDB(b.db, h.ClusterID, common.UseEagerLoading)
+	cluster, err := common.GetClusterFromDB(b.db, h.CurrentClusterID, common.UseEagerLoading)
 	if err != nil {
 		return 0, err
 	}
@@ -3758,7 +3714,7 @@ func (b *bareMetalInventory) GetCredentialsInternal(ctx context.Context, params 
 func (b *bareMetalInventory) UpdateHostInstallProgress(ctx context.Context, params installer.UpdateHostInstallProgressParams) middleware.Responder {
 	log := logutil.FromContext(ctx, b.log)
 	log.Infof("Update host %s install progress", params.HostID)
-	host, err := common.GetHostFromDB(b.db, params.ClusterID.String(), params.HostID.String())
+	host, err := common.GetHostFromDBByCurrentCluster(b.db, params.ClusterID.String(), params.HostID.String())
 	if err != nil {
 		log.WithError(err).Errorf("failed to find host %s", params.HostID)
 		return installer.NewUpdateHostInstallProgressNotFound().

@@ -63,9 +63,9 @@ func (i *installCmd) GetSteps(ctx context.Context, host *models.Host) ([]*models
 	step.StepType = models.StepTypeInstall
 	step.Command = "bash"
 
-	cluster, err := common.GetClusterFromDBWithoutDisabledHosts(i.db, host.ClusterID)
+	cluster, err := common.GetClusterFromDBWithoutDisabledHosts(i.db, host.CurrentClusterID)
 	if err != nil {
-		i.log.Errorf("failed to get cluster %s", host.ClusterID)
+		i.log.Errorf("failed to get cluster %s", host.CurrentClusterID)
 		return nil, err
 	}
 
@@ -125,7 +125,7 @@ func (i *installCmd) getFullInstallerCommand(cluster *common.Cluster, host *mode
 	podmanCmd := podmanBaseCmd[:]
 	installerCmd := []string{
 		"--role", string(role),
-		"--cluster-id", string(host.ClusterID),
+		"--cluster-id", string(host.CurrentClusterID),
 		"--host-id", string(*host.ID),
 		"--boot-device", bootdevice,
 		"--url", i.instructionConfig.ServiceBaseURL,
