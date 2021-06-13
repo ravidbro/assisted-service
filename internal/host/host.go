@@ -1140,12 +1140,7 @@ func (m *Manager) SetDiskSpeed(ctx context.Context, h *models.Host, path string,
 }
 
 func (m *Manager) BindHost(ctx context.Context, h *models.Host, db *gorm.DB, newClusterID strfmt.UUID) error {
-	log := logutil.FromContext(ctx, m.log)
-	_, err := hostutil.UpdateHost(log, db, h.ClusterID, *h.ID, *h.Status, "current_cluster_id", string(newClusterID))
-	if err != nil {
-		log.WithError(err).Errorf("failed to bind host %s", *h.ID)
-		return err
-	}
+	h.CurrentClusterID = newClusterID
 	return m.sm.Run(TransitionTypeBindHost, newStateHost(h), &TransitionArgsBindHost{
 		ctx: ctx,
 		db:  db,
