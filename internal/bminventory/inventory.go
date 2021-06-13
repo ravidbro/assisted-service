@@ -2661,32 +2661,6 @@ func (b *bareMetalInventory) initializeNewHost(ctx context.Context,
 	}
 }
 
-/*
-func (b *bareMetalInventory) setHostKind(cluster *common.Cluster, host *models.Host) {
-	kind := swag.String(models.HostKindHost)
-	if swag.StringValue(cluster.Kind) == models.ClusterKindAddHostsCluster {
-		kind = swag.String(models.HostKindAddToExistingClusterHost)
-	}
-	if swag.StringValue(cluster.Kind) == models.ClusterKindPoolCluster {
-		kind = swag.String(models.HostKindPoolClusterHost)
-	}
-	host.Kind = kind
-}
-
-func (b *bareMetalInventory) setHostRole(cluster *common.Cluster, host *models.Host) {
-	// We immediately set the role to master in single node clusters to have more strict (master) validations.
-	// Typically, the validations are "weak" because an auto-assign host has the potential to only be a worker,
-	// which has less strict hardware requirements. This early role assignment results in clearer, more early
-	// errors for the user in case of insufficient hardware. In the future, single-node clusters might support
-	// extra nodes (as workers). In that case, this line might need to be removed.
-	defaultRole := models.HostRoleAutoAssign
-	if common.IsSingleNodeCluster(cluster) {
-		defaultRole = models.HostRoleMaster
-	}
-	host.Role = defaultRole
-}
-*/
-
 func (b *bareMetalInventory) generateNextStepRunnerCommand(ctx context.Context, params *installer.RegisterHostParams) *models.HostRegistrationResponseAO1NextStepRunnerCommand {
 
 	currentImageTag := extractImageTag(b.AgentDockerImg)

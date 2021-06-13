@@ -147,12 +147,11 @@ type API interface {
 }
 
 type Manager struct {
-	log            logrus.FieldLogger
-	db             *gorm.DB
-	instructionApi hostcommands.InstructionApi
-	hwValidator    hardware.Validator
-	eventsHandler  events.Handler
-	//sm                    map[string]stateswitch.StateMachine
+	log                   logrus.FieldLogger
+	db                    *gorm.DB
+	instructionApi        hostcommands.InstructionApi
+	hwValidator           hardware.Validator
+	eventsHandler         events.Handler
 	sm                    stateswitch.StateMachine
 	rp                    *refreshPreprocessor
 	metricApi             metrics.API
@@ -169,7 +168,6 @@ func NewManager(log logrus.FieldLogger, db *gorm.DB, eventsHandler events.Handle
 		config:        config,
 		eventsHandler: eventsHandler,
 	}
-	// sm := stateswitch.NewStateMachine()
 	sm := NewHostStateMachine(stateswitch.NewStateMachine(), th)
 	sm = NewPoolClusterHostStateMachine(sm, th)
 	return &Manager{
@@ -178,14 +176,11 @@ func NewManager(log logrus.FieldLogger, db *gorm.DB, eventsHandler events.Handle
 		instructionApi: instructionApi,
 		hwValidator:    hwValidator,
 		eventsHandler:  eventsHandler,
-		//sm: map[string]stateswitch.StateMachine{models.HostKindHost: NewHostStateMachine(th),
-		//	models.HostKindAddToExistingClusterHost: NewHostStateMachine(th),
-		//	models.HostKindPoolClusterHost:          NewPoolClusterHostStateMachine(th)},
-		sm:            sm,
-		rp:            newRefreshPreprocessor(log, hwValidatorCfg, hwValidator, operatorsApi, config.DisabledHostvalidations),
-		metricApi:     metricApi,
-		Config:        *config,
-		leaderElector: leaderElector,
+		sm:             sm,
+		rp:             newRefreshPreprocessor(log, hwValidatorCfg, hwValidator, operatorsApi, config.DisabledHostvalidations),
+		metricApi:      metricApi,
+		Config:         *config,
+		leaderElector:  leaderElector,
 	}
 }
 
@@ -200,31 +195,7 @@ func (m *Manager) RegisterHost(ctx context.Context, cluster *common.Cluster, hos
 				host.ID.String(), host.ClusterID.String())
 		}
 	}
-	/*
-		dbHost, err := common.GetHostFromDB(db, h.ClusterID.String(), h.ID.String())
-		var host *models.Host
-		if err != nil {
-			if !errors.Is(err, gorm.ErrRecordNotFound) {
-				return err
-			}
 
-			// Delete any previews record of the host if it was soft deleted from the cluster,
-			// no error will be returned if the host was not existed.
-			if err := db.Unscoped().Delete(&common.Host{}, "id = ? and cluster_id = ?", *h.ID, h.ClusterID).Error; err != nil {
-				return errors.Wrapf(
-					err,
-					"error while trying to delete previews record from db (if exists) of host %s in cluster %s",
-					h.ID.String(), h.ClusterID.String())
-			}
-
-			host = h
-		} else {
-			host = &dbHost.Host
-			host.Kind = h.Kind
-		}
-	*/
-
-	//sm := m.sm[swag.StringValue(host.Kind)]
 	return m.sm.Run(TransitionTypeRegisterHost, newStateHost(host), &TransitionArgsRegisterHost{
 		ctx:                   ctx,
 		discoveryAgentVersion: host.DiscoveryAgentVersion,
@@ -261,7 +232,6 @@ func (m *Manager) setHostRole(cluster *common.Cluster, host *models.Host) {
 }
 
 func (m *Manager) RegisterInstalledOCPHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	//sm := m.sm[swag.StringValue(h.Kind)]
 	return m.sm.Run(TransitionTypeRegisterInstalledHost, newStateHost(h), &TransitionArgsRegisterInstalledHost{
 		ctx: ctx,
 		db:  db,
@@ -271,7 +241,6 @@ func (m *Manager) RegisterInstalledOCPHost(ctx context.Context, h *models.Host, 
 func (m *Manager) HandleInstallationFailure(ctx context.Context, h *models.Host) error {
 
 	lastStatusUpdateTime := h.StatusUpdatedAt
-	//sm := m.sm[swag.StringValue(h.Kind)]
 	err := m.sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
 		ctx:    ctx,
 		reason: "installation command failed",
@@ -322,7 +291,6 @@ func (m *Manager) populateDisksId(inventory *models.Inventory) {
 func (m *Manager) HandlePrepareInstallationFailure(ctx context.Context, h *models.Host, reason string) error {
 
 	lastStatusUpdateTime := h.StatusUpdatedAt
-	//sm := m.sm[swag.StringValue(h.Kind)]
 	err := m.sm.Run(TransitionTypeHostInstallationFailed, newStateHost(h), &TransitionArgsHostInstallationFailed{
 		ctx:    ctx,
 		reason: reason,
@@ -495,7 +463,6 @@ func (m *Manager) refreshStatusInternal(ctx context.Context, h *models.Host, c *
 		}
 	}
 
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	err = m.sm.Run(TransitionTypeRefresh, newStateHost(h), &TransitionArgsRefreshHost{
 		ctx:               ctx,
 		db:                db,
@@ -521,7 +488,6 @@ func (m *Manager) Install(ctx context.Context, h *models.Host, db *gorm.DB) erro
 	if db != nil {
 		cdb = db
 	}
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	return m.sm.Run(TransitionTypeInstallHost, newStateHost(h), &TransitionArgsInstallHost{
 		ctx: ctx,
 		db:  cdb,
@@ -529,7 +495,6 @@ func (m *Manager) Install(ctx context.Context, h *models.Host, db *gorm.DB) erro
 }
 
 func (m *Manager) EnableHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	return m.sm.Run(TransitionTypeEnableHost, newStateHost(h), &TransitionArgsEnableHost{
 		ctx: ctx,
 		db:  db,
@@ -537,7 +502,6 @@ func (m *Manager) EnableHost(ctx context.Context, h *models.Host, db *gorm.DB) e
 }
 
 func (m *Manager) DisableHost(ctx context.Context, h *models.Host, db *gorm.DB) error {
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	return m.sm.Run(TransitionTypeDisableHost, newStateHost(h), &TransitionArgsDisableHost{
 		ctx: ctx,
 		db:  db,
@@ -845,7 +809,6 @@ func (m *Manager) CancelInstallation(ctx context.Context, h *models.Host, reason
 		}
 	}()
 
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	err := m.sm.Run(TransitionTypeCancelInstallation, newStateHost(h), &TransitionArgsCancelInstallation{
 		ctx:    ctx,
 		reason: reason,
@@ -906,7 +869,6 @@ func (m *Manager) ResetHost(ctx context.Context, h *models.Host, reason string, 
 		}
 	}
 
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	if err := m.sm.Run(transitionType, newStateHost(h), transitionArgs); err != nil {
 		eventSeverity = models.EventSeverityError
 		eventInfo = fmt.Sprintf("Failed to reset installation of host %s. Error: %s", hostutil.GetHostnameForMsg(h), err.Error())
@@ -927,7 +889,6 @@ func (m *Manager) ResetPendingUserAction(ctx context.Context, h *models.Host, db
 		}
 	}()
 
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	err := m.sm.Run(TransitionTypeResettingPendingUserAction, newStateHost(h), &TransitionResettingPendingUserAction{
 		ctx: ctx,
 		db:  db,
@@ -1185,7 +1146,6 @@ func (m *Manager) BindHost(ctx context.Context, h *models.Host, db *gorm.DB, new
 		log.WithError(err).Errorf("failed to bind host %s", *h.ID)
 		return err
 	}
-	// sm := m.sm[swag.StringValue(h.Kind)]
 	return m.sm.Run(TransitionTypeBindHost, newStateHost(h), &TransitionArgsBindHost{
 		ctx: ctx,
 		db:  db,
