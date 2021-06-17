@@ -126,7 +126,7 @@ func (i *InstructionManager) GetNextSteps(ctx context.Context, host *models.Host
 	ClusterID := host.ClusterID
 	hostID := host.ID
 	hostStatus := swag.StringValue(host.Status)
-	log.Infof("GetNextSteps cluster: ,<%s> host: <%s>, host status: <%s>", ClusterID, hostID, hostStatus)
+	log.Infof("GetNextSteps cluster: <%s> host: <%s>, host status: <%s>", ClusterID, hostID, hostStatus)
 
 	returnSteps := models.Steps{}
 	stateToSteps := i.installingClusterStateToSteps
@@ -137,7 +137,8 @@ func (i *InstructionManager) GetNextSteps(ctx context.Context, host *models.Host
 		stateToSteps = i.poolClusterToSteps
 	}
 
-	// returnSteps.PostStepAction = swag.String(models.StepsPostStepActionContinue)
+	// default action value in case status steps are not defined (as for HostStatusPreparingSuccessful)
+	returnSteps.PostStepAction = swag.String(models.StepsPostStepActionContinue)
 	if cmdsMap, ok := stateToSteps[hostStatus]; ok {
 		//need to add the step id
 		returnSteps.NextInstructionSeconds = cmdsMap.NextStepInSec
